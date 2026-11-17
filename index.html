@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Big Bang</title>
+  <meta name="description" content="Uma animação do Big Bang: da singularidade até a explosão de uma estrela.">
+  <meta name="theme-color" content="#000000">
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <!-- A animação é desenhada aqui (WebGL) -->
+  <div id="palco" aria-hidden="true"></div>
+  <div id="vinheta" aria-hidden="true"></div>
+  <div id="clarao" aria-hidden="true"></div>
+  <p id="dica"><span class="mouse">clique para começar</span><span class="toque">toque para começar</span></p>
+
+  <!--
+    A animação termina aqui, numa tela branca.
+    Coloque o que vier depois dentro deste <main>. Ele fica escondido até a animação acabar.
+    Se precisar de JavaScript nessa hora, escute o evento:
+      window.addEventListener('bigbang:fim', () => { ... });
+  -->
+  <main id="final" hidden>
+  </main>
+
+  <!-- Código gerado a partir da pasta src/ (veja o README). Funciona até abrindo o arquivo direto. -->
+  <script src="js/bigbang.js"></script>
+</body>
+</html>
