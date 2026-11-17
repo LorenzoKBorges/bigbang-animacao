@@ -16,8 +16,8 @@ São **10 segundos** do clique até a tela branca, tudo em tons de roxo.
 | antes do clique | Um ponto branco-arroxeado pulsa no meio do espaço, puxando partículas de energia. |
 | 0 – 1,75 s | A pessoa clica (ou toca, ou aperta Enter/Espaço): o ponto treme, pulsa cada vez mais rápido, solta raios e implode. |
 | 1,75 s | **Big Bang**: clarão, ondas de choque, plasma roxo, nuvens de gás, protogaláxias, estrelas novas e rochas passando pela câmera. |
-| 2,9 – 4,1 s | A câmera voa até uma estrela roxa que se acende no meio da explosão. |
-| 4,1 – 8 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), contorna o núcleo de uma galáxia enquanto a câmera dá uma volta completa nela, a câmera gira num parafuso e a estrela contorna Saturno. O que ela passa perto acende. |
+| 2,8 – 3,9 s | A câmera voa até uma estrela roxa que se acende no meio da explosão. |
+| 3,9 – 8 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), desliza por cima de uma galáxia e faz uma curva aberta passando ao lado de Saturno, que flutua acima dela. A câmera vai girando devagar em volta da estrela, de trás para o lado. O que ela passa perto acende. |
 | 8 – 10 s | A estrela para, treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
 
 ## Colocando conteúdo depois da animação
