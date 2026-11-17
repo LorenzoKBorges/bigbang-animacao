@@ -176,7 +176,7 @@ export class Planeta {
   constructor(cena, tex, q, centro) {
     this.centro = centro.clone();
     this.raio = 70;
-    this.raioOrbita = 33;
+    this.raioOrbita = 36;
     this.grupo = new THREE.Group();
     this.grupo.position.copy(centro);
     this.grupo.rotation.set(0.28, 0, 0.42);

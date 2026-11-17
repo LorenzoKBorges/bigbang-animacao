@@ -133,9 +133,9 @@ export class Estrela {
     this.rastro = new Rastro(cena, 240, '#f3e8ff', '#c026d3', 0.55);
 
     this.malabares = [
-      { cor: '#c4b5fd', raio: 2.1, vel: 3.4, eixo: new THREE.Vector3(0.25, 1, 0.15), fase: 0 },
-      { cor: '#f0abfc', raio: 2.7, vel: -2.7, eixo: new THREE.Vector3(1, 0.35, -0.3), fase: 2.1 },
-      { cor: '#a5b4fc', raio: 3.3, vel: 2.2, eixo: new THREE.Vector3(-0.5, 0.55, 1), fase: 4.2 },
+      { cor: '#c4b5fd', raio: 2.4, vel: 1.9, eixo: new THREE.Vector3(0.25, 1, 0.15), fase: 0 },
+      { cor: '#f0abfc', raio: 3.0, vel: -1.5, eixo: new THREE.Vector3(1, 0.35, -0.3), fase: 2.1 },
+      { cor: '#a5b4fc', raio: 3.6, vel: 1.2, eixo: new THREE.Vector3(-0.5, 0.55, 1), fase: 4.2 },
     ].map((m) => {
       const n = m.eixo.normalize();
       const e1 = new THREE.Vector3().crossVectors(n, Math.abs(n.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize();
@@ -156,7 +156,7 @@ export class Estrela {
   /** Deslocamento de um malabar em relação à estrela no instante t. */
   deslocamento(m, t, fatorRaio, out) {
     const a = m.fase + m.vel * t;
-    const r = m.raio * fatorRaio * (1 + 0.22 * Math.sin(t * 2.3 + m.fase));
+    const r = m.raio * fatorRaio * (1 + 0.08 * Math.sin(t * 1.1 + m.fase));
     return out.copy(m.e1).multiplyScalar(Math.cos(a) * r).addScaledVector(m.e2, Math.sin(a) * r);
   }
 

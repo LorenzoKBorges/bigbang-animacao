@@ -32,10 +32,10 @@ import {
 // Total: 10 segundos do clique até a tela branca.
 const CARGA = 1.5; // sobrecarga: treme, pulsa cada vez mais rápido
 const BANG = CARGA + 0.25; // implosão rápida e... BUM (1,75 s)
-const FOCO_INI = BANG + 1.15; // a câmera voa até a estrela
-const FOCO_FIM = BANG + 2.35;
-const VIAGEM_INI = FOCO_FIM; // a estrela passa pela galáxia e por Saturno (4,1 s)
-const VIAGEM_DUR = 3.9;
+const FOCO_INI = BANG + 1.05; // a câmera voa até a estrela
+const FOCO_FIM = BANG + 2.15;
+const VIAGEM_INI = FOCO_FIM; // a estrela passa pela galáxia e por Saturno (3,9 s)
+const VIAGEM_DUR = 4.1;
 const FINAL_INI = VIAGEM_INI + VIAGEM_DUR; // a estrela para e começa a tremer (8 s)
 const SUPERNOVA = FINAL_INI + 1.15; // ela explode
 const BRANCO = SUPERNOVA + 0.85; // tela 100% branca (10 s)
@@ -49,9 +49,9 @@ const FLUXO_1 = 0.95;
 // Posições dos marcos do universo
 const H0 = new THREE.Vector3(25, 5, -20); // onde a estrela protagonista "nasce"
 const POS = {
-  galaxia: new THREE.Vector3(-5, -40, -205),
-  planeta: new THREE.Vector3(-100, 0, -350),
-  fim: new THREE.Vector3(-45, -5, -420),
+  galaxia: new THREE.Vector3(3, -48, -130), // a galáxia fica embaixo...
+  passagem: new THREE.Vector3(-2, -20, -204), // ...a estrela faz a curva aqui, com Saturno ao lado
+  fim: new THREE.Vector3(64, -17, -292),
 };
 
 const parametros = new URLSearchParams(location.search);
@@ -140,9 +140,10 @@ function iniciar() {
   const bigbang = new Explosao(cena, tex, { qualidade: q, semente: 7 });
   const ceu = new Ceu(cena, tex, q);
   const galaxia = new Galaxia(cena, tex, q, POS.galaxia);
-  const planeta = new Planeta(cena, tex, q, POS.planeta);
+  // Saturno flutua acima da galáxia, do lado de dentro da curva da estrela
+  const planeta = new Planeta(cena, tex, q, Viagem.centroDeSaturno(galaxia, POS.passagem, POS.fim, 36));
 
-  const viagem = new Viagem({ inicio: H0, galaxia, planeta, fim: POS.fim }, VIAGEM_DUR);
+  const viagem = new Viagem({ inicio: H0, galaxia, planeta, passagem: POS.passagem, fim: POS.fim }, VIAGEM_DUR);
   const poeira = new PoeiraViagem(cena, q, viagem);
   const estrela = new Estrela(cena, tex);
   const marcos = { galaxia, planeta };
@@ -151,14 +152,8 @@ function iniciar() {
   const fimViagem = viagem.pontoBase(viagem.L, new THREE.Vector3());
   const tangFinal = viagem.tangenteFinal(new THREE.Vector3());
   const velFinal = (viagem.L - viagem.sEm(VIAGEM_DUR - 0.05)) / 0.05;
-  // lado de onde a câmera assiste à estrela explodir (um pouco atrás, à direita e acima dela)
-  const ladoFinal = (() => {
-    const T = new THREE.Vector3();
-    const U = new THREE.Vector3();
-    const R = new THREE.Vector3();
-    viagem.quadro(viagem.L, T, U, R);
-    return R.multiplyScalar(0.9).addScaledVector(T, -0.35).addScaledVector(U, 0.25).normalize();
-  })();
+  // lado de onde a câmera assiste à estrela explodir (onde o giro da viagem termina)
+  const ladoFinal = viagem.ladoFinal(new THREE.Vector3());
 
   function posEstrela(t, out) {
     if (t < VIAGEM_INI) {
@@ -316,7 +311,7 @@ function iniciar() {
       const desloc = vTmp.subVectors(camViagem1.pos, fimViagem);
       const seguir = vTmp2.copy(estrelaPos).add(desloc);
       const lado = vTmp3.copy(ladoFinal);
-      const dist = lerp(12, 8.5, easeInOutCubic(progresso(0.1, SUPERNOVA - FINAL_INI, tf)));
+      const dist = lerp(camViagem1.pos.distanceTo(fimViagem), 9, easeInOutCubic(progresso(0, SUPERNOVA - FINAL_INI, tf)));
       const b = easeInOutCubic(progresso(0, 0.65, tf));
       camPos.lerpVectors(seguir, lado.multiplyScalar(dist).add(estrelaPos), b);
       camAlvo.copy(camViagem1.alvo).sub(fimViagem).add(estrelaPos).lerp(estrelaPos, b);
