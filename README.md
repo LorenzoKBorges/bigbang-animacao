@@ -18,7 +18,7 @@ São **10 segundos** do clique até a tela branca, tudo em tons de roxo.
 | 1,55 s | **Big Bang**: clarão, ondas de choque, plasma roxo, nuvens de gás, protogaláxias, estrelas novas e rochas passando pela câmera. |
 | 2,45 – 3,4 s | A câmera voa até uma estrela roxa que se acende no meio da explosão. |
 | 3,4 – 4,5 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), atravessa um braço da galáxia por dentro, no meio das estrelas. A câmera vira e mostra Saturno. |
-| 4,5 – 8,15 s | A estrela sobe até Saturno e dá uma volta completa (360°) em volta dele, passando pela frente e por trás do planeta; a câmera acompanha girando devagar. Depois ela para ao lado de Saturno. |
+| 4,5 – 8,15 s | A estrela sobe até Saturno e dá uma volta completa (360°) em volta dele, e a câmera dá a volta inteira junto com ela, por fora, com a galáxia passando ao fundo. Depois a estrela para ao lado de Saturno. |
 | 8,15 – 10 s | A estrela treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
 
 ## Colocando conteúdo depois da animação

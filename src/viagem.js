@@ -6,9 +6,10 @@ const SUAVIZAR = 35; // a câmera de perseguição segue a direção média de �
 const LIXA = 10; // o caminho é arredondado numa janela de ±10 (tira quinas sem encolher a órbita)
 const GIRO = 1.1; // ~63°: quanto a câmera vira para o lado ao sair do braço da galáxia
 const RAIO_ORBITA = 34; // a estrela dá a volta em Saturno a esta distância do centro (anéis vão até 28)
-const RAIO_CAMERA = 60; // a câmera acompanha por fora...
+const RAIO_CAMERA = 60; // a câmera acompanha por fora, um pouco acima do plano da volta...
 const ATRASO_CAMERA = 0.6; // ...começando ~35° atrás da estrela...
-const GIRO_CAMERA_SATURNO = THREE.MathUtils.degToRad(160); // ...e girando só 160° enquanto a estrela dá a volta inteira
+const EXTRA_ORBITA = THREE.MathUtils.degToRad(30); // a estrela dá 360° + 30° e sai pela tangente
+const GIRO_CAMERA_SATURNO = Math.PI * 2 + EXTRA_ORBITA; // ...e a câmera dá a volta inteira junto com ela
 const DIRECAO_DO_BRACO = new THREE.Vector3(-0.25, 0, -1); // a estrela atravessa o braço indo "para dentro" da cena
 
 /** Média móvel de uma lista de pontos (x, y, z) com janela ±k. */
@@ -90,7 +91,7 @@ export class Viagem {
     const C = planeta.centro;
 
     // volta completa (360° + um pouco) em torno de Saturno, entrando e saindo pela tangente
-    const EXTRA = THREE.MathUtils.degToRad(30);
+    const EXTRA = EXTRA_ORBITA;
     const naOrbita = (fi) =>
       C.clone()
         .addScaledVector(lado, -Math.cos(fi) * RAIO_ORBITA)
@@ -144,6 +145,19 @@ export class Viagem {
     // ângulo (em volta de Saturno) onde a câmera começa a acompanhar a volta
     this.eixoCamera = this.eixoOrbita.clone();
     this.inicioCamera = lado.clone().negate().applyAxisAngle(this.eixoOrbita, -ATRASO_CAMERA);
+
+    // Quanto a câmera já girou em volta de Saturno em cada ponto do caminho. No meio da volta ela
+    // gira exatamente junto com a estrela (sempre ~35° atrás); na entrada e na saída acelera e
+    // freia aos poucos, para não dar tranco.
+    this.anguloCamera = new Float32Array(M + 1);
+    const ds = this.L / M;
+    let acumulado = 0;
+    for (let i = 0; i <= M; i++) {
+      const si = i * ds;
+      acumulado += smoothstep(this.sOrbIni - 30, this.sOrbIni + 30, si) * (1 - smoothstep(this.sOrbFim - 30, this.sOrbFim + 30, si)) * ds;
+      this.anguloCamera[i] = acumulado;
+    }
+    for (let i = 0; i <= M; i++) this.anguloCamera[i] *= GIRO_CAMERA_SATURNO / acumulado;
 
     // ao sair do braço a câmera vira para o lado de fora da volta (Saturno fica do outro lado)
     const T = new THREE.Vector3();
@@ -320,9 +334,8 @@ export class Viagem {
   /**
    * Câmera. Mistura duas "gruas":
    *  - perseguição: atrás da estrela (dentro do braço), virando para o lado ao sair dele;
-   *  - Saturno: por fora da volta, girando devagar em torno do planeta enquanto a estrela
-   *    dá a volta inteira (passa na frente e por trás dele). Depois da volta ela só se
-   *    aproxima da estrela, sem girar, para a explosão final.
+   *  - Saturno: por fora da volta, dando a volta inteira em torno do planeta junto com a
+   *    estrela. Depois da volta ela só se aproxima da estrela, sem girar, para a explosão final.
    * Preenche pos, alvo e cima; devolve o FOV.
    */
   camera(t, pos, alvo, cima) {
@@ -341,13 +354,15 @@ export class Viagem {
       .addScaledVector(R, 14 * Math.sin(giro))
       .addScaledVector(U, 3.5);
 
-    // --- Saturno: a câmera gira só uma parte da volta, com começo e fim suaves
-    const k = smoothstep(this.sOrbIni - 30, this.sOrbFim + 20, s);
-    const dirCam = (this._dc ??= new THREE.Vector3()).copy(this.inicioCamera).applyAxisAngle(this.eixoCamera, GIRO_CAMERA_SATURNO * k);
+    // --- Saturno: a câmera dá a volta inteira junto com a estrela
+    const x = clamp(s / this.L, 0, 1) * M;
+    const i0 = Math.min(M - 1, Math.floor(x));
+    const ang = lerp(this.anguloCamera[i0], this.anguloCamera[i0 + 1], x - i0);
+    const dirCam = (this._dc ??= new THREE.Vector3()).copy(this.inicioCamera).applyAxisAngle(this.eixoCamera, ang);
     const pSat = (this._pS ??= new THREE.Vector3())
       .copy(this.saturno)
       .addScaledVector(dirCam, RAIO_CAMERA)
-      .addScaledVector(this.cimaOrbita, 16);
+      .addScaledVector(this.cimaOrbita, 20);
     const aSat = (this._aS ??= new THREE.Vector3()).lerpVectors(this.saturno, estrela, 0.3);
 
     // depois da volta: mesma linha de visão, chegando perto da estrela
@@ -366,12 +381,11 @@ export class Viagem {
   }
 
   /**
-   * Inclinação dos anéis de Saturno: ~30° fora do plano da volta, abertos para o lado
-   * de onde a câmera assiste (no meio do giro dela), para os anéis aparecerem bem.
+   * Inclinação dos anéis de Saturno: quase no plano da volta (15° fora dele). Como a câmera
+   * dá a volta inteira um pouco acima desse plano, os anéis aparecem abertos o tempo todo.
    */
   normalDosAneis() {
-    const meio = this.inicioCamera.clone().applyAxisAngle(this.eixoCamera, GIRO_CAMERA_SATURNO / 2);
-    return this.cimaOrbita.clone().multiplyScalar(Math.cos(0.5)).addScaledVector(meio, Math.sin(0.5)).normalize();
+    return this.cimaOrbita.clone().multiplyScalar(Math.cos(0.26)).addScaledVector(this.inicioCamera, Math.sin(0.26)).normalize();
   }
 
   /** Quanto cada marco deve brilhar agora (estrela perto = destaque). */
