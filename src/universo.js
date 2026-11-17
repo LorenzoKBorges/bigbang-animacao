@@ -130,7 +130,7 @@ export class Galaxia {
       geometria({ aR: [aR, 1], aAng: [aAng, 1], aY: [aY, 1], aCor: [aCor, 3], aTam: [aTam, 1], aSem: [aSem, 1] }, n),
       materialPontos({
         uniforms: this.u,
-        perto: 22,
+        perto: 7,
         cabecalho: /* glsl */ `
           attribute float aR; attribute float aAng; attribute float aY; attribute vec3 aCor; attribute float aTam; attribute float aSem;
           uniform float uOpac; uniform float uT; uniform float uDestaque;
@@ -151,10 +151,22 @@ export class Galaxia {
     this.grupo.add(this.halo, this.nucleo);
   }
 
-  /** Converte um ponto do plano da galáxia (x, altura, z) para o mundo. */
-  local(x, y, z) {
+  /** Muda a galáxia de lugar. */
+  moverPara(centro) {
+    this.centro.copy(centro);
+    this.grupo.position.copy(centro);
     this.grupo.updateMatrixWorld();
-    return new THREE.Vector3(x, y, z).applyMatrix4(this.grupo.matrixWorld);
+  }
+
+  /**
+   * Centro do braço `braco` (0, 1 ou 2) a uma distância `r` do núcleo, no instante `tempo`
+   * (a galáxia gira devagar), em coordenadas do mundo. Mesma fórmula usada para espalhar as estrelas.
+   */
+  pontoDoBraco(braco, r, tempo, out = new THREE.Vector3()) {
+    const w = 1 / (0.35 + r / 22);
+    const a = (braco * Math.PI * 2) / 3 + Math.log(r / 6) * 1.9 - tempo * w * 0.1;
+    this.grupo.updateMatrixWorld();
+    return out.set(Math.cos(a) * r, 0, Math.sin(a) * r).applyMatrix4(this.grupo.matrixWorld);
   }
 
   get normal() {
@@ -184,7 +196,15 @@ export class Planeta {
 
     this.corpo = new THREE.Mesh(
       new THREE.SphereGeometry(12, 64, 48),
-      new THREE.MeshStandardMaterial({ map: tex.planeta, roughness: 0.95, metalness: 0 })
+      // brilho próprio leve: as faixas aparecem mesmo no lado que a estrela não ilumina
+      new THREE.MeshStandardMaterial({
+        map: tex.planeta,
+        emissiveMap: tex.planeta,
+        emissive: new THREE.Color('#ffffff'),
+        emissiveIntensity: 0.22,
+        roughness: 0.95,
+        metalness: 0,
+      })
     );
     this.grupo.add(this.corpo);
 
@@ -230,6 +250,9 @@ export class Planeta {
       geoAnel,
       new THREE.MeshStandardMaterial({
         map: tex.aneisPlaneta,
+        emissiveMap: tex.aneisPlaneta,
+        emissive: new THREE.Color('#ffffff'),
+        emissiveIntensity: 0.4,
         transparent: true,
         side: THREE.DoubleSide,
         depthWrite: false,
@@ -244,8 +267,8 @@ export class Planeta {
     this.luas = [];
     const rand = criarRng(404);
     for (const [raio, dist, vel, cor] of [
-      [2.2, 50, 0.22, '#c4b5d9'],
-      [1.4, 62, -0.16, '#dccbe8'],
+      [2.2, 74, 0.22, '#c4b5d9'],
+      [1.4, 90, -0.16, '#dccbe8'],
     ]) {
       const geo = new THREE.IcosahedronGeometry(raio, 3);
       const pp = geo.attributes.position;
@@ -264,6 +287,11 @@ export class Planeta {
 
   get normal() {
     return new THREE.Vector3(0, 1, 0).applyQuaternion(this.grupo.quaternion);
+  }
+
+  /** Inclina o planeta (e os anéis) para o eixo apontar para `normal`. */
+  inclinarAneis(normal) {
+    this.grupo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal.clone().normalize());
   }
 
   atualizar(t, destaque, estrela, formacao) {

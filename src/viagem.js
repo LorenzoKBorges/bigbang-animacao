@@ -1,11 +1,15 @@
 import * as THREE from 'three';
 import { smoothstep, clamp, lerp } from './utils.js';
 
-const CIMA = new THREE.Vector3(0, 1, 0);
 const M = 3000; // amostras ao longo do caminho
-const SUAVIZAR = 100; // a câmera segue a direção média de ±100 de caminho (faz as curvas com calma)
-const GIRO = 0.95; // ~55°: a câmera gira de trás da estrela até o lado dela
-const LIXA = 30; // o caminho é arredondado numa janela de ±30 unidades
+const SUAVIZAR = 35; // a câmera de perseguição segue a direção média de ±35 de caminho
+const LIXA = 10; // o caminho é arredondado numa janela de ±10 (tira quinas sem encolher a órbita)
+const GIRO = 1.1; // ~63°: quanto a câmera vira para o lado ao sair do braço da galáxia
+const RAIO_ORBITA = 34; // a estrela dá a volta em Saturno a esta distância do centro (anéis vão até 28)
+const RAIO_CAMERA = 60; // a câmera acompanha por fora...
+const ATRASO_CAMERA = 0.6; // ...começando ~35° atrás da estrela...
+const GIRO_CAMERA_SATURNO = THREE.MathUtils.degToRad(160); // ...e girando só 160° enquanto a estrela dá a volta inteira
+const DIRECAO_DO_BRACO = new THREE.Vector3(-0.25, 0, -1); // a estrela atravessa o braço indo "para dentro" da cena
 
 /** Média móvel de uma lista de pontos (x, y, z) com janela ±k. */
 function mediaMovel(src, k) {
@@ -31,85 +35,134 @@ function mediaMovel(src, k) {
 }
 
 /**
- * A viagem da estrela pelo universo recém-nascido: o caminho, a velocidade em cada trecho
- * e onde a câmera fica a cada instante.
+ * Planeja a rota antes de criar Saturno: posiciona a galáxia para que a estrela chegue
+ * alinhada com um braço, e diz onde Saturno deve ficar para a volta completa.
+ *
+ * @param braco  { indice, raio, tempo }: o braço, a distância do núcleo onde a estrela o cruza
+ *               e o instante aproximado da passagem (a galáxia gira devagar)
+ */
+export function planejarRota(galaxia, inicio, braco) {
+  const { indice, raio, tempo } = braco;
+  const MEIA_TRAVESSIA = 45; // a estrela fica ~90 unidades dentro do braço
+  const n = galaxia.normal;
+
+  // 1) gira a galáxia (em volta do eixo vertical) para o braço apontar para dentro da cena,
+  //    e a coloca de modo que o braço comece 70 unidades à frente do ponto inicial,
+  //    na mesma direção em que o braço segue (a estrela entra nele de frente)
+  galaxia.moverPara(new THREE.Vector3());
+  const direcaoDoBraco = () => {
+    const a = galaxia.pontoDoBraco(indice, raio, tempo);
+    return galaxia.pontoDoBraco(indice, raio - 1, tempo).sub(a).normalize();
+  };
+  const atual = direcaoDoBraco();
+  const ajuste = Math.atan2(DIRECAO_DO_BRACO.x, DIRECAO_DO_BRACO.z) - Math.atan2(atual.x, atual.z);
+  galaxia.grupo.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ajuste));
+  galaxia.grupo.updateMatrixWorld();
+  const meio0 = galaxia.pontoDoBraco(indice, raio, tempo);
+  const dirBraco = direcaoDoBraco();
+  galaxia.moverPara(inicio.clone().addScaledVector(dirBraco, 70 + MEIA_TRAVESSIA).sub(meio0));
+
+  // 2) atravessa o braço em linha reta, tangente a ele no meio (no plano do disco):
+  //    como o braço curva devagar, a reta fica dentro da faixa de estrelas o trecho todo
+  const meio = galaxia.pontoDoBraco(indice, raio, tempo);
+  const noBraco = [-1, -0.5, 0, 0.5, 1].map((f) => meio.clone().addScaledVector(dirBraco, f * MEIA_TRAVESSIA));
+  const fimBraco = noBraco[noBraco.length - 1];
+  const dirFim = dirBraco;
+
+  // 3) sobe do disco até a entrada da órbita, e Saturno fica ao lado (do lado do núcleo)
+  const entrada = fimBraco.clone().addScaledVector(dirFim, 72).addScaledVector(n, 20);
+  const dEnt = entrada.clone().sub(fimBraco).normalize();
+  const praNucleo = galaxia.centro.clone().sub(entrada);
+  const lado = praNucleo.addScaledVector(dEnt, -praNucleo.dot(dEnt)).normalize();
+  const saturno = entrada.clone().addScaledVector(lado, RAIO_ORBITA);
+
+  return { noBraco, entrada, dEnt, lado, saturno };
+}
+
+/**
+ * A viagem da estrela: atravessa um braço da galáxia, dá uma volta completa em Saturno
+ * e segue até o ponto onde vai explodir. Também diz onde a câmera fica a cada instante.
  */
 export class Viagem {
-  constructor(m, duracao) {
+  constructor({ inicio, galaxia, planeta, rota }, duracao) {
     this.duracao = duracao;
-    const { inicio, galaxia, planeta, passagem, fim } = m;
-    const sobreGal = Viagem.sobreGalaxia(galaxia);
+    const { noBraco, entrada, dEnt, lado } = rota;
+    const C = planeta.centro;
 
-    // Curva única e aberta (raio grande) que passa por `passagem`, ao lado de Saturno.
-    // Ela vira exatamente o ângulo entre a chegada e a saída, então não há "quiques".
-    const entra = passagem.clone().sub(sobreGal).normalize();
-    const sai = fim.clone().sub(passagem).normalize();
-    const angulo = entra.angleTo(sai);
-    const frente = entra.clone().add(sai).normalize();
-    const dentro = angulo > 0.05 ? sai.clone().sub(entra).normalize() : new THREE.Vector3(1, 0, 0);
-    const RAIO_CURVA = 110;
-    const centroCurva = passagem.clone().addScaledVector(dentro, RAIO_CURVA);
-    const naCurva = (f) => {
-      const a = (f * angulo) / 2;
-      return centroCurva
-        .clone()
-        .addScaledVector(dentro, -Math.cos(a) * RAIO_CURVA)
-        .addScaledVector(frente, Math.sin(a) * RAIO_CURVA);
-    };
+    // volta completa (360° + um pouco) em torno de Saturno, entrando e saindo pela tangente
+    const EXTRA = THREE.MathUtils.degToRad(30);
+    const naOrbita = (fi) =>
+      C.clone()
+        .addScaledVector(lado, -Math.cos(fi) * RAIO_ORBITA)
+        .addScaledVector(dEnt, Math.sin(fi) * RAIO_ORBITA);
+    const orbita = [];
+    const total = Math.PI * 2 + EXTRA;
+    const nOrb = Math.ceil(total / 0.22);
+    for (let k = 0; k <= nOrb; k++) orbita.push(naOrbita((total * k) / nOrb));
+    const saida = orbita[orbita.length - 1];
+    const dSai = lado.clone().multiplyScalar(Math.sin(EXTRA)).addScaledVector(dEnt, Math.cos(EXTRA));
+    const fim = saida.clone().addScaledVector(dSai, 28); // para logo depois da volta, ao lado de Saturno
 
     const pts = [
       inicio.clone(),
-      new THREE.Vector3().lerpVectors(inicio, sobreGal, 0.5),
-      sobreGal, // 1) desliza por cima do núcleo da galáxia
-      naCurva(-1), // 2) faz a curva passando ao lado de Saturno
-      naCurva(-0.5),
-      naCurva(0),
-      naCurva(0.5),
-      naCurva(1),
-      new THREE.Vector3().lerpVectors(naCurva(1), fim, 0.5), // 3) segue reto, desacelerando
-      fim.clone(),
+      new THREE.Vector3().lerpVectors(inicio, noBraco[0], 0.5),
+      ...noBraco, // 1) por dentro do braço da galáxia
+      new THREE.Vector3().lerpVectors(noBraco[noBraco.length - 1], entrada, 0.5), // 2) sobe até Saturno
+      ...orbita, // 3) volta completa em Saturno
+      new THREE.Vector3().lerpVectors(saida, fim, 0.5), // 4) desacelera e para ao lado de Saturno
+      fim,
     ];
-
     this.curva = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
-    this.curva.arcLengthDivisions = 6000;
+    this.curva.arcLengthDivisions = 8000;
     this.curva.updateArcLengths();
     this.L = this.curva.getLength(); // atualizado em amostrar() depois de arredondar o caminho
 
-    // Marcos: o que pode ser destacado, quanto a estrela desacelera e quanto a câmera olha para ele
+    // dados da órbita para a câmera que dá a volta junto
+    this.saturno = C.clone();
+    // eixo da volta (regra da mão direita: girar em torno dele leva a estrela para a frente)
+    this.eixoOrbita = new THREE.Vector3().crossVectors(lado.clone().negate(), dEnt).normalize();
+    // a câmera fica do lado de "cima" da órbita (o mesmo lado de cima da galáxia)
+    this.cimaOrbita = this.eixoOrbita.clone().multiplyScalar(this.eixoOrbita.dot(galaxia.normal) >= 0 ? 1 : -1);
+
+    // Marcos: o que pode ser destacado e quanto a estrela desacelera perto dele
     this.marcos = [
-      { nome: 'galaxia', obj: galaxia, centro: galaxia.centro, raio: galaxia.raio, vel: 0.8, olhar: 0 },
-      { nome: 'planeta', obj: planeta, centro: planeta.centro, raio: planeta.raio, vel: 0.7, olhar: 0.12 },
+      { nome: 'galaxia', centro: galaxia.centro, raio: galaxia.raio },
+      { nome: 'planeta', centro: planeta.centro, raio: planeta.raio },
     ];
+    this.entradaOrbita = entrada.clone();
+    this.saidaOrbita = saida.clone();
 
     this.amostrar();
+
+    // onde (em s) começam e terminam o braço e a volta em Saturno
+    this.sBracoIni = this.sMaisPerto(noBraco[0]);
+    this.sBracoFim = this.sMaisPerto(noBraco[noBraco.length - 1]);
+    this.sOrbIni = this.sMaisPerto(entrada);
+    this.sOrbFim = this.sMaisPerto(saida, this.sOrbIni + 50);
     this.tabelaDeTempo();
 
-    // A câmera gira para o lado de fora da curva: assim Saturno aparece atrás da estrela
-    // (e a câmera nunca passa por dentro dos anéis).
-    let maisPerto = 0;
-    let menor = Infinity;
-    const q = new THREE.Vector3();
-    for (let i = 0; i <= M; i += 5) {
-      const d = this.pontoBase((i / M) * this.L, q).distanceTo(planeta.centro);
-      if (d < menor) [menor, maisPerto] = [d, (i / M) * this.L];
-    }
+    // ângulo (em volta de Saturno) onde a câmera começa a acompanhar a volta
+    this.eixoCamera = this.eixoOrbita.clone();
+    this.inicioCamera = lado.clone().negate().applyAxisAngle(this.eixoOrbita, -ATRASO_CAMERA);
+
+    // ao sair do braço a câmera vira para o lado de fora da volta (Saturno fica do outro lado)
     const T = new THREE.Vector3();
     const U = new THREE.Vector3();
     const R = new THREE.Vector3();
-    this.quadro(maisPerto, T, U, R);
-    this.giroFinal = GIRO * (R.dot(planeta.centro.clone().sub(this.pontoBase(maisPerto, q))) > 0 ? -1 : 1);
+    this.quadro(this.sOrbIni, T, U, R);
+    this.giroFinal = GIRO * (R.dot(lado) > 0 ? -1 : 1);
   }
 
-  /** Ponto por cima do núcleo da galáxia por onde a estrela passa. */
-  static sobreGalaxia(galaxia) {
-    return galaxia.centro.clone().addScaledVector(galaxia.normal, 40);
-  }
-
-  /** Onde Saturno fica: do lado de dentro da curva que a estrela faz em `passagem`. */
-  static centroDeSaturno(galaxia, passagem, fim, distancia) {
-    const entra = passagem.clone().sub(Viagem.sobreGalaxia(galaxia)).normalize();
-    const sai = fim.clone().sub(passagem).normalize();
-    return passagem.clone().addScaledVector(sai.sub(entra).normalize(), distancia);
+  /** s do ponto do caminho mais perto de p (procurando a partir de `desde`). */
+  sMaisPerto(p, desde = 0) {
+    let melhor = 0;
+    let menor = Infinity;
+    const q = new THREE.Vector3();
+    for (let i = Math.floor((desde / this.L) * M); i <= M; i++) {
+      const d = this.pontoBase((i / M) * this.L, q).distanceToSquared(p);
+      if (d < menor) [menor, melhor] = [d, (i / M) * this.L];
+    }
+    return melhor;
   }
 
   /** Proximidade (0..1) de um ponto a um marco. */
@@ -162,13 +215,13 @@ export class Viagem {
       T.set([t.x, t.y, t.z], i * 3);
     }
 
-    // Direção suavizada (média numa janela): é ela que orienta a câmera,
+    // Direção suavizada (média numa janela): é ela que orienta a câmera de perseguição,
     // então a câmera faz as curvas com calma em vez de virar junto com a estrela.
     this.T = new Float32Array((M + 1) * 3);
     const janela = Math.max(1, Math.round((SUAVIZAR / this.L) * M));
     const soma = [0, 0, 0];
     const somar = (i, sinal) => {
-      for (let k = 0; k < 3; k++) soma[k] += sinal * T[i * 3 + k];
+      for (let c = 0; c < 3; c++) soma[c] += sinal * T[i * 3 + c];
     };
     for (let i = 0; i <= Math.min(M, janela); i++) somar(i, 1);
     for (let i = 0; i <= M; i++) {
@@ -178,22 +231,22 @@ export class Viagem {
       this.T.set([t.x, t.y, t.z], i * 3);
     }
 
-    // "Cima" da câmera: acompanha a direção suavizada e fica nivelado com o horizonte
+    // "Cima" da câmera: nivelado com o horizonte
     this.U = new Float32Array((M + 1) * 3);
+    const cima = new THREE.Vector3(0, 1, 0);
     const u = new THREE.Vector3();
     for (let i = 0; i <= M; i++) {
       t.fromArray(this.T, i * 3);
-      u.copy(CIMA).addScaledVector(t, -CIMA.dot(t)).normalize();
+      u.copy(cima).addScaledVector(t, -cima.dot(t)).normalize();
       this.U.set([u.x, u.y, u.z], i * 3);
     }
   }
 
-  /** Velocidade relativa em cada ponto: um pouco mais devagar perto do que vale a pena ver. */
-  fatorVelocidade(s, p) {
-    let f = 1;
-    for (const mc of this.marcos) f += (mc.vel - 1) * this.peso(mc, p);
-    f *= lerp(0.06, 1, smoothstep(0, this.L * 0.12, s));
-    f *= lerp(0.06, 1, 1 - smoothstep(this.L * 0.88, this.L, s));
+  /** Velocidade relativa em cada ponto: rápida pelo braço da galáxia, mais calma na volta em Saturno. */
+  fatorVelocidade(s) {
+    let f = lerp(1, 0.5, smoothstep(this.sBracoFim - 40, this.sBracoFim + 10, s)); // freia na saída do braço
+    f *= lerp(0.06, 1, smoothstep(0, this.L * 0.06, s));
+    f *= lerp(0.08, 1, 1 - smoothstep(this.sOrbFim - 15, this.L, s));
     return f;
   }
 
@@ -204,7 +257,7 @@ export class Viagem {
     const ds = this.L / M;
     for (let i = 0; i <= M; i++) {
       this.pontoBase(i * ds, p);
-      this.fator[i] = this.fatorVelocidade(i * ds, p);
+      this.fator[i] = this.fatorVelocidade(i * ds);
     }
     for (let i = 1; i <= M; i++) {
       this.tempo[i] = this.tempo[i - 1] + ds / ((this.fator[i - 1] + this.fator[i]) / 2);
@@ -228,7 +281,7 @@ export class Viagem {
     return this._interp(this.P, s, out, false);
   }
 
-  /** Orientação da câmera em s (frente suavizada, cima e direita). */
+  /** Orientação da câmera de perseguição em s (frente suavizada, cima e direita). */
   quadro(s, T, U, R) {
     this._interp(this.T, s, T, true);
     this._interp(this.U, s, U, true);
@@ -264,60 +317,61 @@ export class Viagem {
     return this.pontoBase(this.sEm(t), out);
   }
 
-  /** Câmera que acompanha a estrela. Preenche pos, alvo e cima; devolve o FOV. */
+  /**
+   * Câmera. Mistura duas "gruas":
+   *  - perseguição: atrás da estrela (dentro do braço), virando para o lado ao sair dele;
+   *  - Saturno: por fora da volta, girando devagar em torno do planeta enquanto a estrela
+   *    dá a volta inteira (passa na frente e por trás dele). Depois da volta ela só se
+   *    aproxima da estrela, sem girar, para a explosão final.
+   * Preenche pos, alvo e cima; devolve o FOV.
+   */
   camera(t, pos, alvo, cima) {
     const s = this.sEm(t);
-    const base = this.pontoBase(s, (this._B ??= new THREE.Vector3()));
+    const estrela = this.pontoBase(s, (this._B ??= new THREE.Vector3()));
+
+    // --- perseguição
     const T = (this._cT ??= new THREE.Vector3());
     const U = (this._cU ??= new THREE.Vector3());
     const R = (this._cR ??= new THREE.Vector3());
     this.quadro(s, T, U, R);
+    const giro = this.giroFinal * smoothstep(this.sBracoIni, this.sOrbIni + 30, s);
+    const pPers = (this._pP ??= new THREE.Vector3())
+      .copy(estrela)
+      .addScaledVector(T, -14 * Math.cos(giro))
+      .addScaledVector(R, 14 * Math.sin(giro))
+      .addScaledVector(U, 3.5);
 
-    let wMax = 0;
-    alvo.copy(base);
-    const finalzinho = 1 - smoothstep(this.L * 0.75, this.L * 0.95, s); // no fim, só a estrela importa
-    const desvio = (this._desvio ??= new THREE.Vector3()).set(0, 0, 0);
-    for (const mc of this.marcos) {
-      const d = this._d(mc.centro, base);
-      // só puxa o olhar para o que está do lado ou à frente (nunca para trás da câmera)
-      const aFrente = smoothstep(-0.7, 0.5, d.dot(T) / (d.length() + 1e-6));
-      const w = this.peso(mc, base) * finalzinho;
-      wMax = Math.max(wMax, w);
-      desvio.addScaledVector(d, mc.olhar * w * aFrente);
-    }
-    alvo.add(desvio.clampLength(0, 9));
+    // --- Saturno: a câmera gira só uma parte da volta, com começo e fim suaves
+    const k = smoothstep(this.sOrbIni - 30, this.sOrbFim + 20, s);
+    const dirCam = (this._dc ??= new THREE.Vector3()).copy(this.inicioCamera).applyAxisAngle(this.eixoCamera, GIRO_CAMERA_SATURNO * k);
+    const pSat = (this._pS ??= new THREE.Vector3())
+      .copy(this.saturno)
+      .addScaledVector(dirCam, RAIO_CAMERA)
+      .addScaledVector(this.cimaOrbita, 16);
+    const aSat = (this._aS ??= new THREE.Vector3()).lerpVectors(this.saturno, estrela, 0.3);
 
-    const atras = 14 + 4 * wMax;
-    const altura = 3.5 + 2 * wMax;
+    // depois da volta: mesma linha de visão, chegando perto da estrela
+    const fimDaVolta = smoothstep(this.sOrbFim, this.L, s);
+    const perto = (this._pt ??= new THREE.Vector3()).subVectors(pSat, estrela);
+    perto.setLength(lerp(perto.length(), 20, fimDaVolta)).add(estrela);
+    aSat.lerp(estrela, fimDaVolta);
 
-    // Um único giro lento em volta da estrela: começa atrás dela e termina ao lado,
-    // exatamente onde a câmera fica para assistir a explosão final.
-    const giro = this.giroFinal * smoothstep(this.L * 0.08, this.L * 0.92, s);
+    // começa no meio do braço: a câmera vira aos poucos enquanto a estrela ainda está lá dentro
+    const w = smoothstep((this.sBracoIni + this.sBracoFim) / 2, this.sOrbIni + 60, s);
+    pos.lerpVectors(pPers, perto, w);
+    alvo.lerpVectors(estrela, aSat, w);
+    cima.copy(U).lerp(this.cimaOrbita, w).normalize();
 
-    const off = (this._off ??= new THREE.Vector3());
-    off.copy(T).multiplyScalar(-atras * Math.cos(giro)).addScaledVector(R, atras * Math.sin(giro)).addScaledVector(U, altura);
-    cima.copy(U);
-    pos.copy(base).add(off);
-
-    return 60 + 5 * smoothstep(0.6, 1, this.velocidade(t));
+    return 60 + 4 * smoothstep(0.6, 1, this.velocidade(t));
   }
 
-  /** Direção (no fim da viagem) de onde a câmera assiste a explosão. */
-  ladoFinal(out) {
-    const T = new THREE.Vector3();
-    const U = new THREE.Vector3();
-    const R = new THREE.Vector3();
-    this.quadro(this.L, T, U, R);
-    return out
-      .copy(T)
-      .multiplyScalar(-Math.cos(this.giroFinal))
-      .addScaledVector(R, Math.sin(this.giroFinal))
-      .addScaledVector(U, 0.25)
-      .normalize();
-  }
-
-  _d(a, b) {
-    return (this._dv ??= new THREE.Vector3()).subVectors(a, b);
+  /**
+   * Inclinação dos anéis de Saturno: ~30° fora do plano da volta, abertos para o lado
+   * de onde a câmera assiste (no meio do giro dela), para os anéis aparecerem bem.
+   */
+  normalDosAneis() {
+    const meio = this.inicioCamera.clone().applyAxisAngle(this.eixoCamera, GIRO_CAMERA_SATURNO / 2);
+    return this.cimaOrbita.clone().multiplyScalar(Math.cos(0.5)).addScaledVector(meio, Math.sin(0.5)).normalize();
   }
 
   /** Quanto cada marco deve brilhar agora (estrela perto = destaque). */
