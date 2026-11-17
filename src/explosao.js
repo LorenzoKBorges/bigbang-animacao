@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { materialPontos, materialLinhas, geometria, pontos, sprite, longeDaCamera, geometriaRocha } from './materiais.js';
 import { criarRng, naEsfera, gauss, smoothstep } from './utils.js';
 
-export const PALETA_UNIVERSO = ['#8b5cf6', '#a78bfa', '#c026d3', '#ec4899', '#f472b6', '#3b82f6', '#60a5fa', '#22d3ee', '#f59e0b', '#7c3aed'];
+export const PALETA_UNIVERSO = ['#7c3aed', '#8b5cf6', '#a78bfa', '#c084fc', '#d946ef', '#c026d3', '#e879f9', '#6d28d9', '#818cf8', '#f0abfc'];
 
 /**
  * Uma explosão completa. Quase tudo é animado na GPU em função do tempo desde a explosão,
@@ -51,12 +51,12 @@ export class Explosao {
 
     // ---- Clarão, brilho residual e ondas de choque
     this.flash = sprite(tex.brilho, '#ffffff', 1, 0);
-    this.resto = sprite(tex.brilho, '#8f5cff', 1, 0);
+    this.resto = sprite(tex.brilho, '#9b4dff', 1, 0);
     this.onda = sprite(tex.anel, '#d7c2ff', 1, 0);
-    this.onda2 = sprite(tex.anel, '#7fd6ff', 1, 0);
+    this.onda2 = sprite(tex.anel, '#c9a3ff', 1, 0);
     const matPlano = new THREE.MeshBasicMaterial({
       map: tex.anel,
-      color: new THREE.Color('#ffc6ef'),
+      color: new THREE.Color('#e7b8ff'),
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
@@ -102,8 +102,8 @@ export class Explosao {
           vec3 dd = vec3(aDir.x * cg - aDir.z * sg, aDir.y, aDir.x * sg + aDir.z * cg);
           vec3 turb = vec3(sin(aSem * 91.0 + uT * 0.7), sin(aSem * 57.0 + uT * 0.6), sin(aSem * 33.0 + uT * 0.8)) * 0.05 * d;
           pos = dd * d + turb;
-          float quente = exp(-uT * (0.7 + aSem * 1.3));
-          cor = mix(aCor, vec3(1.0, 0.95, 0.88) * 1.8, quente);
+          float quente = exp(-uT * (1.6 + aSem * 2.6));
+          cor = mix(aCor, vec3(0.96, 0.9, 1.0) * 1.8, quente);
           tam = aTam * (1.0 + 2.5 * quente);
           alfa = uOpac * (0.5 + 0.5 * quente) * smoothstep(0.0, 0.04, uT);
         `,
@@ -142,7 +142,7 @@ export class Explosao {
           float tc = aPonta > 0.5 ? uT : max(uT - 0.1 - aSem * 0.12, 0.0);
           pos = aDir * aVel * (1.0 - exp(-k * tc)) / k;
           alfa = exp(-uT * (1.1 + aSem)) * aPonta * smoothstep(0.0, 0.03, uT);
-          cor = mix(vec3(0.75, 0.6, 1.0), vec3(0.8, 0.95, 1.0), aSem) * 2.0;
+          cor = mix(vec3(0.7, 0.45, 1.0), vec3(0.92, 0.78, 1.0), aSem) * 2.0;
         `,
       })
     );
@@ -174,9 +174,9 @@ export class Explosao {
       const gPos = new Float32Array(nG * 3);
       const gCor = new Float32Array(nG * 3);
       const gTam = new Float32Array(nG);
-      const cA = new THREE.Color('#ffe7c4');
-      const cB = new THREE.Color('#9fb6ff');
-      const cC = new THREE.Color('#ff8fd8');
+      const cA = new THREE.Color('#f7e8ff');
+      const cB = new THREE.Color('#a78bfa');
+      const cC = new THREE.Color('#f0abfc');
       for (let i = 0; i < nG; i++) {
         const braco = i % 2;
         const r = Math.pow(rand(), 0.8) * 9;
@@ -200,7 +200,7 @@ export class Explosao {
       for (let i = 0; i < o.galaxias; i++) {
         const g = new THREE.Group();
         const p = pontos(geoG, matG);
-        const nucleo = sprite(tex.brilho, '#ffd9a8', 9, 0.9);
+        const nucleo = sprite(tex.brilho, '#e9c6ff', 9, 0.9);
         g.add(p, nucleo);
         g.rotation.set(rand() * Math.PI, rand() * Math.PI, 0);
         const dg = direcao(new THREE.Vector3(), 0.15);
@@ -218,7 +218,7 @@ export class Explosao {
       const eVel = new Float32Array(nE);
       const eSem = new Float32Array(nE);
       const eCor = new Float32Array(nE * 3);
-      const cs = ['#ffffff', '#cfe0ff', '#ffe6c2', '#e6d4ff'].map((h) => new THREE.Color(h));
+      const cs = ['#ffffff', '#e9d5ff', '#ddd6fe', '#f5d0fe'].map((h) => new THREE.Color(h));
       for (let i = 0; i < nE; i++) {
         direcao(v, 0.3);
         eDir.set([v.x, v.y, v.z], i * 3);
@@ -253,8 +253,8 @@ export class Explosao {
     if (o.fragmentos > 0) {
       const geo = geometriaRocha(rand);
       const mat = new THREE.MeshStandardMaterial({
-        color: '#4a3430',
-        emissive: new THREE.Color('#ff6a1f'),
+        color: '#7a6888',
+        emissive: new THREE.Color('#b44bff'),
         emissiveIntensity: 3,
         roughness: 0.85,
         flatShading: true,
@@ -270,7 +270,7 @@ export class Explosao {
         this.dadosFrag.push({
           dir: v.clone(),
           vel: o.vMax * (0.35 + rand() * 0.9),
-          tam: 0.4 + Math.pow(rand(), 3) * 3.2,
+          tam: 0.3 + Math.pow(rand(), 3) * 2.2,
           eixo: naEsfera(rand, new THREE.Vector3()),
           giro: (rand() - 0.5) * 6,
           escala: new THREE.Vector3(1 + rand() * 0.6, 0.7 + rand() * 0.4, 1),
@@ -284,7 +284,7 @@ export class Explosao {
     }
 
     // Luz do clarão (ilumina os fragmentos)
-    this.luz = new THREE.PointLight('#ffd2f2', 0, 0, 1.4);
+    this.luz = new THREE.PointLight('#dcb8ff', 0, 0, 1.4);
     this.grupo.add(this.luz);
   }
 
@@ -345,7 +345,7 @@ export class Explosao {
       const vivo = te < 9;
       this.fragmentos.visible = vivo;
       if (vivo) {
-        this.fragmentos.material.emissiveIntensity = 0.15 + 3.5 * Math.exp(-te * 0.7);
+        this.fragmentos.material.emissiveIntensity = 0.04 + 0.7 * Math.exp(-te * 2.2);
         this.dadosFrag.forEach((d, i) => {
           const dist = (d.vel * (1 - Math.exp(-0.45 * te))) / 0.45;
           this._p.copy(d.dir).multiplyScalar(dist);

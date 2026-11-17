@@ -109,33 +109,33 @@ class Rastro {
   }
 }
 
-const COR_HALO = new THREE.Color('#ffc46b');
-const COR_HALO_LIMITE = new THREE.Color('#bfe3ff');
-const COR_LUZ = new THREE.Color('#ffd9a8');
-const COR_LUZ_LIMITE = new THREE.Color('#d8ecff');
+const COR_HALO = new THREE.Color('#b98bff');
+const COR_HALO_LIMITE = new THREE.Color('#f3e8ff');
+const COR_LUZ = new THREE.Color('#d9c2ff');
+const COR_LUZ_LIMITE = new THREE.Color('#f5eeff');
 
 /**
- * A estrela protagonista: núcleo dourado com raios em cruz, uma luz que ilumina
+ * A estrela protagonista: núcleo branco-arroxeado com raios em cruz, uma luz que ilumina
  * planetas e rochas, um rastro, e três bolinhas de luz girando em volta como malabares.
  */
 export class Estrela {
   constructor(cena, tex) {
     this.grupo = new THREE.Group();
     cena.add(this.grupo);
-    this.halo2 = sprite(tex.brilho, '#ff7a3d', 10, 0.1);
-    this.halo = sprite(tex.brilho, '#ffc46b', 4.5, 0.7);
-    this.flare = sprite(tex.flare, '#fff0d0', 9, 0.7);
+    this.halo2 = sprite(tex.brilho, '#7c3aed', 10, 0.1);
+    this.halo = sprite(tex.brilho, '#b98bff', 4.5, 0.7);
+    this.flare = sprite(tex.flare, '#efe1ff', 9, 0.7);
     this.nucleo = sprite(tex.brilho, '#ffffff', 1.6, 1);
     this.grupo.add(this.halo2, this.halo, this.flare, this.nucleo);
     this.luz = new THREE.PointLight(COR_LUZ, 0, 0, 1.1);
     this.grupo.add(this.luz);
 
-    this.rastro = new Rastro(cena, 240, '#fff1cf', '#ff4fa3', 0.55);
+    this.rastro = new Rastro(cena, 240, '#f3e8ff', '#c026d3', 0.55);
 
     this.malabares = [
-      { cor: '#7fe8ff', raio: 2.1, vel: 3.4, eixo: new THREE.Vector3(0.25, 1, 0.15), fase: 0 },
-      { cor: '#ff7ae0', raio: 2.7, vel: -2.7, eixo: new THREE.Vector3(1, 0.35, -0.3), fase: 2.1 },
-      { cor: '#c8b4ff', raio: 3.3, vel: 2.2, eixo: new THREE.Vector3(-0.5, 0.55, 1), fase: 4.2 },
+      { cor: '#c4b5fd', raio: 2.1, vel: 3.4, eixo: new THREE.Vector3(0.25, 1, 0.15), fase: 0 },
+      { cor: '#f0abfc', raio: 2.7, vel: -2.7, eixo: new THREE.Vector3(1, 0.35, -0.3), fase: 2.1 },
+      { cor: '#a5b4fc', raio: 3.3, vel: 2.2, eixo: new THREE.Vector3(-0.5, 0.55, 1), fase: 4.2 },
     ].map((m) => {
       const n = m.eixo.normalize();
       const e1 = new THREE.Vector3().crossVectors(n, Math.abs(n.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize();

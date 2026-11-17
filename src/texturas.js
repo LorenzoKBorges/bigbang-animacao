@@ -144,14 +144,14 @@ function criarRuido(semente, periodo) {
   };
 }
 
-/** Gigante gasoso em tons de rosa-dourado, com faixas turbulentas e uma tempestade. */
+/** Saturno em tons de lilás e malva, com faixas turbulentas e uma tempestade. */
 function planeta() {
   const W = 768;
   const H = 384;
   const [c, g] = tela(W, H);
   const fbm = criarRuido(7, 8);
   // cores em sRGB 0..1 (sem passar por THREE.Color, que converteria para linear)
-  const paleta = ['#f3d9c0', '#d9a383', '#ecc9ae', '#b9776b', '#f4e6d6', '#c98f7a', '#9f6a72', '#e4b8a0'].map(
+  const paleta = ['#d9b8f0', '#a77bd0', '#cfa8e6', '#8452b0', '#ead6f5', '#9a6cc6', '#6d3f99', '#c39be0'].map(
     (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
   );
   const img = g.createImageData(W, H);
@@ -182,9 +182,9 @@ function planeta() {
   g.translate(W * 0.32, H * 0.63);
   g.scale(2.2, 1);
   const grd = g.createRadialGradient(0, 0, 0, 0, 0, 16);
-  grd.addColorStop(0, 'rgba(250,236,226,0.95)');
-  grd.addColorStop(0.45, 'rgba(196,110,104,0.85)');
-  grd.addColorStop(1, 'rgba(196,110,104,0)');
+  grd.addColorStop(0, 'rgba(248,236,255,0.95)');
+  grd.addColorStop(0.45, 'rgba(176,96,196,0.85)');
+  grd.addColorStop(1, 'rgba(176,96,196,0)');
   g.fillStyle = grd;
   g.beginPath();
   g.arc(0, 0, 16, 0, Math.PI * 2);
@@ -205,9 +205,9 @@ function aneisPlaneta() {
     let a = ruido * (0.35 + 0.65 * Math.sin(u * Math.PI));
     if (u > 0.6 && u < 0.66) a *= 0.12; // divisão escura
     a *= Math.min(1, u * 12) * Math.min(1, (1 - u) * 10);
-    const r = Math.round(lerp(236, 200, u));
-    const gg = Math.round(lerp(214, 186, u));
-    const b = Math.round(lerp(200, 222, u));
+    const r = Math.round(lerp(236, 186, u));
+    const gg = Math.round(lerp(220, 168, u));
+    const b = Math.round(lerp(246, 232, u));
     g.fillStyle = `rgba(${r},${gg},${b},${a.toFixed(3)})`;
     g.fillRect(x, 0, 1, 4);
   }

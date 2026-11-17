@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { smoothstep, janela, clamp, lerp } from './utils.js';
+import { smoothstep, clamp, lerp } from './utils.js';
 
 const CIMA = new THREE.Vector3(0, 1, 0);
 const M = 3000; // amostras ao longo do caminho
@@ -19,13 +19,16 @@ function orbita({ centro, normal, raio, raioEm = null, anterior, alvo, minVoltas
 
   // sentido +1: tangente(a) = -e1 sen a + e2 cos a
   const angulo = (d, s) => (s > 0 ? Math.atan2(-d.dot(e1), d.dot(e2)) : Math.atan2(d.dot(e1), -d.dot(e2)));
-  // escolhe o sentido cuja entrada fica mais perto de quem vem chegando
-  const r0 = raioEm ? raioEm(0) : raio;
-  const sentido = pos(angulo(dEnt, 1), r0).distanceTo(anterior) <= pos(angulo(dEnt, -1), r0).distanceTo(anterior) ? 1 : -1;
-  const a0 = angulo(dEnt, sentido);
-  const a1 = angulo(dSai, sentido);
-  let varredura = (((sentido * (a1 - a0)) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  while (varredura < minVoltas * Math.PI * 2) varredura += Math.PI * 2;
+  // quanto é preciso girar em cada sentido para entrar e sair nas direções certas
+  const giro = (sentido) => {
+    const a0 = angulo(dEnt, sentido);
+    let v = (((sentido * (angulo(dSai, sentido) - a0)) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    while (v < minVoltas * Math.PI * 2) v += Math.PI * 2;
+    return { a0, v };
+  };
+  // fica com o sentido que dá a volta mais curta (sem passar de uma volta à toa)
+  const sentido = giro(1).v <= giro(-1).v ? 1 : -1;
+  const { a0, v: varredura } = giro(sentido);
   const passos = Math.max(3, Math.ceil(varredura / passo));
   const pts = [];
   for (let k = 0; k <= passos; k++) {
@@ -35,25 +38,6 @@ function orbita({ centro, normal, raio, raioEm = null, anterior, alvo, minVoltas
   return pts;
 }
 
-/** Um looping vertical, como de avião, começando em `inicio` e indo na direção `dir`. */
-function looping(inicio, dir, raio, desvioLateral) {
-  const d = dir.clone().setY(0).normalize();
-  const lado = new THREE.Vector3().crossVectors(d, CIMA).normalize();
-  const pts = [];
-  const n = 12;
-  for (let k = 0; k <= n; k++) {
-    const a = (k / n) * Math.PI * 2;
-    pts.push(
-      inicio
-        .clone()
-        .addScaledVector(d, raio * Math.sin(a))
-        .addScaledVector(CIMA, raio * (1 - Math.cos(a)))
-        .addScaledVector(lado, desvioLateral * (k / n))
-    );
-  }
-  return { pts, fim: pts[pts.length - 1].clone(), d };
-}
-
 /**
  * A viagem da estrela pelo universo recém-nascido: o caminho, a velocidade em cada trecho,
  * as acrobacias e onde a câmera fica a cada instante.
@@ -61,85 +45,38 @@ function looping(inicio, dir, raio, desvioLateral) {
 export class Viagem {
   constructor(m, duracao) {
     this.duracao = duracao;
-    const { inicio, nebulosa, galaxia, planeta, asteroides, buraco, fim } = m;
+    const { inicio, galaxia, planeta, fim } = m;
     const pts = [inicio.clone()];
 
-    // 1) atravessa a nebulosa
-    const nc = nebulosa.centro;
-    pts.push(new THREE.Vector3().lerpVectors(inicio, nc, 0.45).add(new THREE.Vector3(-8, 4, 0)));
-    pts.push(nc.clone().add(new THREE.Vector3(-22, -4, 42)));
-    pts.push(nc.clone().add(new THREE.Vector3(6, 5, 0)));
-    pts.push(nc.clone().add(new THREE.Vector3(-6, -4, -44)));
-
-    // 2) looping no espaço vazio
-    const inicioLoop = m.looping;
-    const dirLoop = galaxia.centro.clone().sub(inicioLoop).setY(0).normalize();
-    pts.push(inicioLoop.clone().addScaledVector(dirLoop, -26));
-    const loop = looping(inicioLoop, dirLoop, 22, 14);
-    pts.push(...loop.pts);
-    pts.push(loop.fim.clone().addScaledVector(loop.d, 30).add(new THREE.Vector3(0, -8, 0)));
-    this.centroLoop = inicioLoop.clone().add(new THREE.Vector3(0, 22, 0));
-
-    // 3) mergulho e volta em torno do núcleo da galáxia (por cima do disco)
-    const centroGal = galaxia.centro.clone().addScaledVector(galaxia.normal, 34);
+    // 1) mergulho e curva em volta do núcleo da galáxia (por cima do disco)
+    const centroGal = galaxia.centro.clone().addScaledVector(galaxia.normal, 30);
+    pts.push(new THREE.Vector3().lerpVectors(inicio, centroGal, 0.45).add(new THREE.Vector3(-6, 8, 0)));
     const orbGal = orbita({
       centro: centroGal,
       normal: galaxia.normal,
-      raio: 58,
+      raio: 38,
       anterior: pts[pts.length - 1],
       alvo: planeta.centro,
-      minVoltas: 0.6,
+      minVoltas: 0.4,
     });
     pts.push(...orbGal);
 
-    // 4) volta inclinada em torno do planeta (cruza o plano dos anéis por fora)
+    // 2) volta inclinada em torno de Saturno (cruza o plano dos anéis por fora)
     const nPla = planeta.normal.clone().applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.45).normalize();
     const saidaGal = orbGal[orbGal.length - 1];
-    pts.push(new THREE.Vector3().lerpVectors(saidaGal, planeta.centro, 0.5).add(new THREE.Vector3(0, 10, 0)));
+    pts.push(new THREE.Vector3().lerpVectors(saidaGal, planeta.centro, 0.5).add(new THREE.Vector3(0, 8, 0)));
     const orbPla = orbita({
       centro: planeta.centro,
       normal: nPla,
       raio: planeta.raioOrbita,
       anterior: pts[pts.length - 1],
-      alvo: asteroides.centro,
-      minVoltas: 0.85,
+      alvo: fim,
+      minVoltas: 0.55,
     });
     pts.push(...orbPla);
 
-    // 5) zigue-zague pelo campo de asteroides
-    const ac = asteroides.centro;
-    const dirAst = buraco.centro.clone().sub(orbPla[orbPla.length - 1]).normalize();
-    const ladoAst = new THREE.Vector3().crossVectors(dirAst, CIMA).normalize();
-    const entradaAst = ac.clone().addScaledVector(dirAst, -62);
-    pts.push(new THREE.Vector3().lerpVectors(orbPla[orbPla.length - 1], entradaAst, 0.5));
-    for (let k = 0; k <= 4; k++) {
-      const f = k / 4;
-      pts.push(
-        ac
-          .clone()
-          .addScaledVector(dirAst, lerp(-62, 62, f))
-          .addScaledVector(ladoAst, (k % 2 ? 1 : -1) * 13 * Math.sin(Math.PI * (0.15 + f * 0.7)))
-          .addScaledVector(CIMA, (k % 2 ? -1 : 1) * 5)
-      );
-    }
-
-    // 6) estilingue em volta do buraco negro e saída até o ponto final
-    const saidaAst = pts[pts.length - 1];
-    pts.push(new THREE.Vector3().lerpVectors(saidaAst, buraco.centro, 0.5).add(new THREE.Vector3(0, 6, 0)));
-    const nBn = buraco.normal.clone().applyAxisAngle(new THREE.Vector3(0, 0, 1), 0.35).normalize();
-    const orbBn = orbita({
-      centro: buraco.centro,
-      normal: nBn,
-      raio: 30,
-      raioEm: (f) => 38 - 12 * Math.sin(Math.PI * f),
-      anterior: pts[pts.length - 1],
-      alvo: fim,
-      minVoltas: 0.55,
-      passo: 0.25,
-    });
-    pts.push(...orbBn);
-    const saidaBn = orbBn[orbBn.length - 1];
-    pts.push(new THREE.Vector3().lerpVectors(saidaBn, fim, 0.5));
+    // 3) sai de Saturno e desacelera até o ponto onde vai explodir
+    pts.push(new THREE.Vector3().lerpVectors(orbPla[orbPla.length - 1], fim, 0.5));
     pts.push(fim.clone());
 
     this.curva = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
@@ -149,12 +86,8 @@ export class Viagem {
 
     // Marcos: o que pode ser destacado, quanto a estrela desacelera e quanto a câmera olha para ele
     this.marcos = [
-      { nome: 'nebulosa', obj: nebulosa, centro: nc, raio: nebulosa.raio, vel: 0.65, olhar: 0.12 },
-      { nome: 'looping', obj: null, centro: this.centroLoop, raio: 40, vel: 0.75, olhar: 0 },
-      { nome: 'galaxia', obj: galaxia, centro: galaxia.centro, raio: galaxia.raio, vel: 0.6, olhar: 0.16 },
-      { nome: 'planeta', obj: planeta, centro: planeta.centro, raio: planeta.raio, vel: 0.5, olhar: 0.4 },
-      { nome: 'asteroides', obj: asteroides, centro: ac, raio: asteroides.raio, vel: 0.62, olhar: 0 },
-      { nome: 'buraco', obj: buraco, centro: buraco.centro, raio: buraco.raio, vel: 1.2, olhar: 0.38 },
+      { nome: 'galaxia', obj: galaxia, centro: galaxia.centro, raio: galaxia.raio, vel: 0.65, olhar: 0.16 },
+      { nome: 'planeta', obj: planeta, centro: planeta.centro, raio: planeta.raio, vel: 0.55, olhar: 0.4 },
     ];
 
     this.amostrar();
@@ -349,18 +282,16 @@ export class Viagem {
     const atras = 13 + 5 * wMax;
     const altura = 3 + 2 * wMax;
 
-    // giro em volta da estrela (eixo "cima"): uma volta completa na galáxia,
-    // e meia guinada para o lado de fora no planeta e no buraco negro
+    // giro em volta da estrela (eixo "cima"): uma volta completa enquanto ela passa pela galáxia,
+    // e uma guinada para o lado de fora em Saturno (o planeta aparece atrás da estrela)
     const tg = this.trecho.galaxia;
-    let giro = Math.PI * 2 * smoothstep(tg.ini, tg.fim, s);
-    for (const nome of ['planeta', 'buraco']) {
-      const mc = this.marcos.find((x) => x.nome === nome);
-      const lado = clamp(R.dot(this._d(mc.centro, base)) / (mc.centro.distanceTo(base) * 0.3 + 1e-3), -1, 1);
-      giro += -lado * (nome === 'planeta' ? 0.75 : 0.9) * pesos[nome];
-    }
-    // parafuso (barrel roll) atravessando os asteroides
-    const ta = this.trecho.asteroides;
-    const parafuso = Math.PI * 2 * smoothstep(ta.ini + 10, ta.fim - 10, s);
+    let giro = Math.PI * 2 * smoothstep(tg.ini * 0.5, tg.fim, s);
+    const mp = this.marcos.find((x) => x.nome === 'planeta');
+    const lado = clamp(R.dot(this._d(mp.centro, base)) / (mp.centro.distanceTo(base) * 0.3 + 1e-3), -1, 1);
+    giro += -lado * 0.75 * pesos.planeta;
+    // um parafuso (barrel roll) no caminho entre a galáxia e Saturno
+    const tp = this.trecho.planeta;
+    const parafuso = Math.PI * 2 * smoothstep(tg.fim, tp.ini, s);
 
     const off = (this._off ??= new THREE.Vector3());
     off.copy(T).multiplyScalar(-atras * Math.cos(giro)).addScaledVector(R, atras * Math.sin(giro)).addScaledVector(U, altura);

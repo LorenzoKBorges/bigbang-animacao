@@ -7,7 +7,7 @@
 html,
 body {
   height: 100%;
-  background: #000;
+  background: #07010f;
 }
 
 body {
@@ -41,7 +41,7 @@ body.rodando {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.85) 100%);
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(16, 2, 36, 0.9) 100%);
   opacity: 0.75;
 }
 

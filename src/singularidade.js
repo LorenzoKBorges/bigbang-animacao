@@ -5,7 +5,7 @@ import { criarRng, naEsfera, batida, tremor, lerp } from './utils.js';
 
 const COR_HALO = new THREE.Color('#9d6bff');
 const COR_QUENTE = new THREE.Color('#ff7ad9');
-const COR_LIMITE = new THREE.Color('#d6ecff');
+const COR_LIMITE = new THREE.Color('#f3e8ff');
 
 /**
  * O ponto branco-arroxeado do começo: pulsa como um coração, puxa partículas de energia

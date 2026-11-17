@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { materialPontos, geometria, pontos, sprite, longeDaCamera, geometriaRocha } from './materiais.js';
+import { materialPontos, geometria, pontos, sprite, longeDaCamera } from './materiais.js';
 import { criarRng, gauss, naEsfera, smoothstep } from './utils.js';
 
-// Tudo o que a estrela visita na viagem depois do Big Bang.
+// O universo depois do Big Bang: céu, a galáxia e Saturno.
 // Cada "marco" tem: centro, raio (alcance do destaque), atualizar(t, destaque, posEstrela) e formacao (0..1).
 
 /** Céu de fundo: estrelas distantes e nebulosidade bem fraca. Acompanha a câmera (sem paralaxe). */
@@ -16,7 +16,7 @@ export class Ceu {
     const cor = new Float32Array(n * 3);
     const tam = new Float32Array(n);
     const sem = new Float32Array(n);
-    const cs = ['#ffffff', '#ffffff', '#cdd9ff', '#a9c1ff', '#ffe2bd', '#ffc9ec', '#e2d1ff'].map((h) => new THREE.Color(h));
+    const cs = ['#ffffff', '#f3e8ff', '#e9d5ff', '#ddd6fe', '#c4b5fd', '#f5d0fe', '#e2d1ff'].map((h) => new THREE.Color(h));
     const v = new THREE.Vector3();
     for (let i = 0; i < n; i++) {
       naEsfera(rand, v);
@@ -46,11 +46,14 @@ export class Ceu {
 
     this.brumas = [];
     const brumas = [
-      ['#5b21b6', [-0.6, 0.15, -0.8], 2600, 0.16],
-      ['#1d4ed8', [0.7, -0.1, -0.7], 2200, 0.12],
-      ['#be185d', [0.1, 0.4, -0.9], 1800, 0.09],
-      ['#0e7490', [-0.8, -0.3, 0.5], 2400, 0.1],
-      ['#6d28d9', [0.6, 0.2, 0.75], 2400, 0.12],
+      ['#6d28d9', [-0.6, 0.15, -0.8], 2800, 0.3],
+      ['#7e22ce', [0.7, -0.1, -0.7], 2500, 0.26],
+      ['#a21caf', [0.1, 0.4, -0.9], 2000, 0.18],
+      ['#4c1d95', [-0.8, -0.3, 0.5], 2800, 0.28],
+      ['#6d28d9', [0.6, 0.2, 0.75], 2600, 0.26],
+      ['#581c87', [0.0, -0.7, 0.2], 3000, 0.3],
+      ['#9333ea', [-0.3, 0.8, 0.1], 2400, 0.2],
+      ['#5b21b6', [0.9, 0.1, -0.1], 2600, 0.24],
     ];
     brumas.forEach(([c, d, s, op], i) => {
       const b = sprite(tex.nuvens[i % tex.nuvens.length], c, s, 0);
@@ -66,65 +69,7 @@ export class Ceu {
     this.u.uOpac.value = opac;
     this.u.uT.value = t;
     this.grupo.visible = opac > 0.001;
-    for (const b of this.brumas) b.material.opacity = b.userData.op * opac;
-  }
-}
-
-/** Nebulosa colorida que a estrela atravessa, acendendo o gás por onde passa. */
-export class Nebulosa {
-  constructor(cena, tex, q, centro) {
-    this.centro = centro.clone();
-    this.raio = 95;
-    this.grupo = new THREE.Group();
-    this.grupo.position.copy(centro);
-    cena.add(this.grupo);
-    const rand = criarRng(202);
-    const cores = ['#ff4fd8', '#a855f7', '#6366f1', '#22d3ee', '#f472b6', '#7c3aed', '#38bdf8'];
-    this.puffs = [];
-    for (let i = 0; i < 52; i++) {
-      const s = sprite(tex.nuvens[i % tex.nuvens.length], cores[i % cores.length], 30 + rand() * 75, 0);
-      s.position.set(gauss(rand) * 40, gauss(rand) * 22, gauss(rand) * 40);
-      s.material.rotation = rand() * Math.PI * 2;
-      s.userData = { op: 0.025 + rand() * 0.05, giro: (rand() - 0.5) * 0.06, rot0: s.material.rotation, mundo: s.position.clone().add(centro) };
-      this.grupo.add(s);
-      this.puffs.push(s);
-    }
-    // estrelinhas dentro do gás
-    const n = Math.round(500 * q);
-    const pos = new Float32Array(n * 3);
-    const sem = new Float32Array(n);
-    for (let i = 0; i < n; i++) {
-      pos.set([gauss(rand) * 45, gauss(rand) * 25, gauss(rand) * 45], i * 3);
-      sem[i] = rand();
-    }
-    this.u = { uOpac: { value: 0 }, uT: { value: 0 }, uDestaque: { value: 0 } };
-    this.estrelas = pontos(
-      geometria({ position: [pos, 3], aSem: [sem, 1] }, n),
-      materialPontos({
-        uniforms: this.u,
-        cabecalho: 'attribute float aSem; uniform float uOpac; uniform float uT; uniform float uDestaque;',
-        corpo: /* glsl */ `
-          pos = position;
-          cor = mix(vec3(0.85, 0.8, 1.0), vec3(1.0, 0.75, 0.95), aSem) * (1.1 + uDestaque * 0.8);
-          tam = 0.35 + aSem * 0.5;
-          alfa = uOpac * (0.6 + 0.4 * sin(uT * 3.0 + aSem * 40.0));
-        `,
-      })
-    );
-    this.grupo.add(this.estrelas);
-  }
-
-  atualizar(t, destaque, estrela, formacao) {
-    this.grupo.visible = formacao > 0.001;
-    this.u.uOpac.value = formacao;
-    this.u.uT.value = t;
-    this.u.uDestaque.value = destaque;
-    for (const s of this.puffs) {
-      const d = s.userData;
-      const perto = smoothstep(75, 0, d.mundo.distanceTo(estrela));
-      s.material.opacity = d.op * formacao * (1 + destaque * 0.5 + perto * 1.6) * longeDaCamera(s);
-      s.material.rotation = d.rot0 + t * d.giro;
-    }
+    for (const b of this.brumas) b.material.opacity = b.userData.op * opac * 0.8;
   }
 }
 
@@ -146,10 +91,10 @@ export class Galaxia {
     const aCor = new Float32Array(n * 3);
     const aTam = new Float32Array(n);
     const aSem = new Float32Array(n);
-    const cNucleo = new THREE.Color('#ffe2b0');
-    const cDentro = new THREE.Color('#f3e8ff');
-    const cFora = new THREE.Color('#7aa2ff');
-    const cRosa = new THREE.Color('#ff6fd0');
+    const cNucleo = new THREE.Color('#fbeaff');
+    const cDentro = new THREE.Color('#e4d4ff');
+    const cFora = new THREE.Color('#9b7bff');
+    const cRosa = new THREE.Color('#f06fe0');
     const c = new THREE.Color();
     for (let i = 0; i < n; i++) {
       let r;
@@ -201,8 +146,8 @@ export class Galaxia {
       })
     );
     this.grupo.add(this.disco);
-    this.nucleo = sprite(tex.brilho, '#ffd7a1', 70, 0);
-    this.halo = sprite(tex.brilho, '#6d5cff', 320, 0);
+    this.nucleo = sprite(tex.brilho, '#f0c8ff', 70, 0);
+    this.halo = sprite(tex.brilho, '#8b4dff', 320, 0);
     this.grupo.add(this.halo, this.nucleo);
   }
 
@@ -226,12 +171,12 @@ export class Galaxia {
   }
 }
 
-/** Gigante gasoso com anéis e duas luas. É iluminado pela luz da própria estrela. */
+/** Saturno: gigante gasoso com anéis e duas luas, iluminado pela luz da própria estrela. */
 export class Planeta {
   constructor(cena, tex, q, centro) {
     this.centro = centro.clone();
     this.raio = 70;
-    this.raioOrbita = 38;
+    this.raioOrbita = 33;
     this.grupo = new THREE.Group();
     this.grupo.position.copy(centro);
     this.grupo.rotation.set(0.28, 0, 0.42);
@@ -299,8 +244,8 @@ export class Planeta {
     this.luas = [];
     const rand = criarRng(404);
     for (const [raio, dist, vel, cor] of [
-      [2.2, 50, 0.22, '#b9b1c9'],
-      [1.4, 62, -0.16, '#d8c3b0'],
+      [2.2, 50, 0.22, '#c4b5d9'],
+      [1.4, 62, -0.16, '#dccbe8'],
     ]) {
       const geo = new THREE.IcosahedronGeometry(raio, 3);
       const pp = geo.attributes.position;
@@ -324,140 +269,11 @@ export class Planeta {
   atualizar(t, destaque, estrela, formacao) {
     this.grupo.visible = formacao > 0.001;
     this.corpo.rotation.y = t * 0.05;
-    this.uAtm.uInt.value = (0.22 + destaque * 0.45) * formacao;
+    this.uAtm.uInt.value = (0.08 + destaque * 0.14) * formacao;
     for (const l of this.luas) {
       const a = l.userData.fase + t * l.userData.vel;
       l.position.set(Math.cos(a) * l.userData.dist, Math.sin(a * 0.7) * 3, Math.sin(a) * l.userData.dist);
     }
-  }
-}
-
-/** Campo de asteroides (rochas instanciadas), iluminadas pela estrela quando ela passa. */
-export class Asteroides {
-  constructor(cena, tex, q, centro) {
-    this.centro = centro.clone();
-    this.raio = 90;
-    this.quantidade = Math.round(270 * Math.max(0.6, q));
-    const rand = criarRng(505);
-    const mat = new THREE.MeshStandardMaterial({ color: '#8f8580', roughness: 1, metalness: 0, flatShading: true });
-    // três formatos diferentes de rocha, cada um com um terço das instâncias
-    this.malhas = [0, 1, 2].map(() => {
-      const m = new THREE.InstancedMesh(geometriaRocha(rand), mat, Math.ceil(this.quantidade / 3));
-      m.frustumCulled = false;
-      m.visible = false;
-      cena.add(m);
-      return m;
-    });
-    this.dados = [];
-    this._m = new THREE.Matrix4();
-    this._q = new THREE.Quaternion();
-    this._s = new THREE.Vector3();
-  }
-
-  /** Espalha as rochas evitando o caminho da estrela (precisa da viagem pronta). */
-  posicionar(viagem) {
-    const rand = criarRng(506);
-    const tentativa = new THREE.Vector3();
-    let guarda = 0;
-    while (this.dados.length < this.quantidade && guarda++ < 20000) {
-      tentativa.set(gauss(rand) * 55, gauss(rand) * 16, gauss(rand) * 48).add(this.centro);
-      const tam = rand() < 0.06 ? 4 + rand() * 4 : 0.5 + Math.pow(rand(), 2) * 3;
-      if (viagem.distanciaAoCaminho(tentativa) < tam * 1.6 + 7) continue;
-      this.dados.push({
-        pos: tentativa.clone(),
-        tam,
-        eixo: naEsfera(rand, new THREE.Vector3()),
-        giro: (rand() - 0.5) * 0.8,
-        fase: rand() * 10,
-      });
-    }
-    for (const m of this.malhas) m.count = 0;
-  }
-
-  atualizar(t, destaque, estrela, formacao) {
-    const vis = formacao > 0.001;
-    for (const m of this.malhas) {
-      m.visible = vis;
-      m.count = 0;
-    }
-    if (!vis) return;
-    this.dados.forEach((d, i) => {
-      const m = this.malhas[i % 3];
-      this._q.setFromAxisAngle(d.eixo, d.fase + t * d.giro);
-      this._s.setScalar(d.tam);
-      this._m.compose(d.pos, this._q, this._s);
-      m.setMatrixAt(m.count++, this._m);
-    });
-    for (const m of this.malhas) m.instanceMatrix.needsUpdate = true;
-  }
-}
-
-/** Buraco negro com disco de acreção. A estrela faz um estilingue gravitacional em volta dele. */
-export class BuracoNegro {
-  constructor(cena, tex, q, centro) {
-    this.centro = centro.clone();
-    this.raio = 85;
-    this.raioOrbita = 21;
-    this.grupo = new THREE.Group();
-    this.grupo.position.copy(centro);
-    this.grupo.rotation.set(0.42, 0, 0.28);
-    cena.add(this.grupo);
-
-    this.horizonte = new THREE.Mesh(new THREE.SphereGeometry(6.2, 48, 32), new THREE.MeshBasicMaterial({ color: '#000000' }));
-    this.grupo.add(this.horizonte);
-
-    const rand = criarRng(606);
-    const n = Math.round(22000 * q);
-    const aR = new Float32Array(n);
-    const aAng = new Float32Array(n);
-    const aY = new Float32Array(n);
-    const aTam = new Float32Array(n);
-    for (let i = 0; i < n; i++) {
-      aR[i] = 8.5 + 44 * Math.pow(rand(), 1.7);
-      aAng[i] = rand() * Math.PI * 2;
-      aY[i] = gauss(rand) * 0.25 * (aR[i] / 15);
-      aTam[i] = 0.18 + rand() * 0.35;
-    }
-    this.u = { uOpac: { value: 0 }, uT: { value: 0 }, uDestaque: { value: 0 } };
-    this.disco = pontos(
-      geometria({ aR: [aR, 1], aAng: [aAng, 1], aY: [aY, 1], aTam: [aTam, 1] }, n),
-      materialPontos({
-        uniforms: this.u,
-        perto: 12,
-        cabecalho: /* glsl */ `
-          attribute float aR; attribute float aAng; attribute float aY; attribute float aTam;
-          uniform float uOpac; uniform float uT; uniform float uDestaque;
-        `,
-        corpo: /* glsl */ `
-          float w = 22.0 / pow(aR, 1.5);
-          float ang = aAng + uT * w * (1.0 + uDestaque * 0.6);
-          pos = vec3(cos(ang) * aR, aY, sin(ang) * aR);
-          float quente = 1.0 - smoothstep(8.5, 52.0, aR);
-          cor = mix(vec3(0.75, 0.18, 0.55), vec3(1.0, 0.55, 0.2), smoothstep(0.15, 0.55, quente));
-          cor = mix(cor, vec3(1.0, 0.95, 0.85), smoothstep(0.7, 1.0, quente));
-          cor *= (0.5 + 1.1 * quente) * (1.0 + uDestaque * 0.4);
-          tam = aTam;
-          alfa = uOpac;
-        `,
-      })
-    );
-    this.grupo.add(this.disco);
-    this.anelFoton = sprite(tex.anel, '#ffdcae', 17.5, 0);
-    this.brilho = sprite(tex.brilho, '#ff6a3d', 150, 0);
-    this.grupo.add(this.brilho, this.anelFoton);
-  }
-
-  get normal() {
-    return new THREE.Vector3(0, 1, 0).applyQuaternion(this.grupo.quaternion);
-  }
-
-  atualizar(t, destaque, estrela, formacao) {
-    this.grupo.visible = formacao > 0.001;
-    this.u.uOpac.value = formacao;
-    this.u.uT.value = t;
-    this.u.uDestaque.value = destaque;
-    this.anelFoton.material.opacity = (0.45 + destaque * 0.15) * formacao;
-    this.brilho.material.opacity = (0.14 + destaque * 0.1) * formacao * longeDaCamera(this.brilho);
   }
 }
 
@@ -471,7 +287,7 @@ export class PoeiraViagem {
     const tam = new Float32Array(n);
     const v = new THREE.Vector3();
     const p = new THREE.Vector3();
-    const cs = ['#b9a7ff', '#8fb3ff', '#e7d9ff', '#ff9fe0'].map((h) => new THREE.Color(h));
+    const cs = ['#b9a7ff', '#c084fc', '#e7d9ff', '#f0abfc'].map((h) => new THREE.Color(h));
     for (let i = 0; i < n; i++) {
       viagem.pontoBase(rand() * viagem.L, p);
       naEsfera(rand, v);

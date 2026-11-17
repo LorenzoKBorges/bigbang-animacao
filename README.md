@@ -9,14 +9,16 @@ Também funciona em qualquer hospedagem estática (GitHub Pages, Netlify, Vercel
 
 ## O que acontece
 
+São **10 segundos** do clique até a tela branca, tudo em tons de roxo.
+
 | Tempo (após o clique) | Cena |
 | --- | --- |
 | antes do clique | Um ponto branco-arroxeado pulsa no meio do espaço, puxando partículas de energia. |
-| 0 – 5 s | A pessoa clica (ou toca, ou aperta Enter/Espaço): o ponto treme, pulsa cada vez mais rápido, solta raios, esquenta de roxo para branco e implode. |
-| 5 s | **Big Bang**: clarão, ondas de choque, plasma colorido, nuvens de gás, protogaláxias, estrelas novas e rochas incandescentes passando pela câmera. |
-| 9 – 13 s | A câmera voa até uma estrela que se acende no meio da explosão. |
-| 13 – 40 s | A estrela passeia pelo universo com três bolinhas de luz girando em volta (os "malabares"): atravessa uma nebulosa, faz um looping, a câmera dá uma volta completa nela por cima de uma galáxia, ela orbita um planeta com anéis, faz um parafuso entre asteroides e um estilingue em volta de um buraco negro. Tudo que ela passa perto acende. |
-| 40 – 47 s | A estrela para, treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
+| 0 – 1,75 s | A pessoa clica (ou toca, ou aperta Enter/Espaço): o ponto treme, pulsa cada vez mais rápido, solta raios e implode. |
+| 1,75 s | **Big Bang**: clarão, ondas de choque, plasma roxo, nuvens de gás, protogaláxias, estrelas novas e rochas passando pela câmera. |
+| 2,9 – 4,1 s | A câmera voa até uma estrela roxa que se acende no meio da explosão. |
+| 4,1 – 8 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), contorna o núcleo de uma galáxia enquanto a câmera dá uma volta completa nela, a câmera gira num parafuso e a estrela contorna Saturno. O que ela passa perto acende. |
+| 8 – 10 s | A estrela para, treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
 
 ## Colocando conteúdo depois da animação
 
@@ -46,8 +48,8 @@ Coloque no fim do endereço:
 | Parâmetro | O que faz |
 | --- | --- |
 | `?fim` | Pula direto para a tela branca final (útil para montar o conteúdo de depois). |
-| `?t=30` | Começa a animação no segundo 30. |
-| `?t=30&pausa` | Congela no segundo 30. |
+| `?t=5` | Começa a animação no segundo 5. |
+| `?t=5&pausa` | Congela no segundo 5. |
 | `?qualidade=0.5` | Menos partículas (o padrão já é mais leve no celular). |
 
 ## Mexendo na animação
@@ -73,9 +75,9 @@ npm run dev
 | `src/main.js` | Linha do tempo (durações), posições dos objetos, câmera e clarões. |
 | `src/singularidade.js` | O ponto pulsante e a sobrecarga. |
 | `src/explosao.js` | A explosão (usada no Big Bang e na explosão final da estrela). |
-| `src/universo.js` | Céu, nebulosa, galáxia, planeta, asteroides e buraco negro. |
+| `src/universo.js` | Céu, galáxia e Saturno. |
 | `src/estrela.js` | A estrela, os malabares e os rastros. |
 | `src/viagem.js` | O caminho da estrela, as acrobacias e a câmera que a segue. |
 | `src/texturas.js` | Texturas desenhadas na hora (não há imagens). |
 
-As durações ficam no topo de `src/main.js` (`CARGA`, `VIAGEM_DUR`, …).
+As durações ficam no topo de `src/main.js` (`CARGA`, `VIAGEM_DUR`, …) e as cores de cada parte no próprio arquivo dela.
