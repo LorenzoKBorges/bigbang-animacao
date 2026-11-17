@@ -224,3 +224,69 @@ export function criarTexturas() {
     aneisPlaneta: aneisPlaneta(),
   };
 }
+
+/**
+ * Textura genérica de planeta (para o sistema solar).
+ * @param faixas    true = faixas horizontais (gasoso); false = manchas (rochoso/oceano)
+ * @param crateras  quantidade de crateras
+ * @param nuvens    true = nuvens brancas por cima
+ */
+export function texturaPlaneta({ semente, paleta, faixas = false, crateras = 0, nuvens = false }) {
+  const W = 512;
+  const H = 256;
+  const [c, g] = tela(W, H);
+  const fbm = criarRuido(semente, 6);
+  const nuvem = criarRuido(semente + 1, 12);
+  const cores = paleta.map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255));
+  const n = cores.length;
+  const img = g.createImageData(W, H);
+  const cor = [0, 0, 0];
+  for (let y = 0; y < H; y++) {
+    const v = y / H;
+    for (let x = 0; x < W; x++) {
+      const u = x / W;
+      const r = fbm(u * 6, v * 6);
+      let idx;
+      if (faixas) {
+        idx = v * 8 + (r - 0.5) * 1.5;
+        idx = ((idx % n) + n) % n;
+      } else {
+        idx = clamp((r - 0.25) * 2, 0, 0.999) * (n - 1);
+      }
+      const i0 = Math.floor(idx);
+      const i1 = faixas ? (i0 + 1) % n : Math.min(n - 1, i0 + 1);
+      const f = idx - i0;
+      const m = f * f * (3 - 2 * f);
+      for (let k = 0; k < 3; k++) cor[k] = lerp(cores[i0][k], cores[i1][k], m);
+      if (nuvens) {
+        const q = nuvem(u * 12, v * 12);
+        const a = clamp((q - 0.55) * 3);
+        for (let k = 0; k < 3; k++) cor[k] = lerp(cor[k], 0.96, a * 0.85);
+      }
+      const polo = 1 - Math.pow(Math.abs(v - 0.5) * 2, 6) * 0.35;
+      const det = 0.9 + r * 0.2;
+      const p = (y * W + x) * 4;
+      img.data[p] = clamp(cor[0] * det * polo) * 255;
+      img.data[p + 1] = clamp(cor[1] * det * polo) * 255;
+      img.data[p + 2] = clamp(cor[2] * det * polo) * 255;
+      img.data[p + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const rand = criarRng(semente + 7);
+  for (let k = 0; k < crateras; k++) {
+    const x = rand() * W;
+    const y = H * (0.15 + rand() * 0.7);
+    const r = 2 + Math.pow(rand(), 2) * 14;
+    const grd = g.createRadialGradient(x, y, r * 0.2, x, y, r);
+    grd.addColorStop(0, 'rgba(30,18,45,0.45)');
+    grd.addColorStop(0.75, 'rgba(30,18,45,0.25)');
+    grd.addColorStop(0.9, 'rgba(235,225,255,0.3)');
+    grd.addColorStop(1, 'rgba(235,225,255,0)');
+    g.fillStyle = grd;
+    g.beginPath();
+    g.ellipse(x, y, r, r * 0.8, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  return textura(c);
+}

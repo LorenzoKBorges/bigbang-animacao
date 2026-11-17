@@ -317,7 +317,7 @@ export class PoeiraViagem {
     const p = new THREE.Vector3();
     const cs = ['#b9a7ff', '#c084fc', '#e7d9ff', '#f0abfc'].map((h) => new THREE.Color(h));
     for (let i = 0; i < n; i++) {
-      viagem.pontoBase(rand() * viagem.L, p);
+      viagem.pontoBase(viagem.sAleatorio(rand), p);
       naEsfera(rand, v);
       const r = 3 + Math.cbrt(rand()) * 65;
       p.addScaledVector(v, r);
