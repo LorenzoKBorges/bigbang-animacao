@@ -14,14 +14,15 @@ const ELEVACAO_CAMERA = THREE.MathUtils.degToRad(28); // ...e quão acima do pla
 const INCLINACAO_SISTEMA = THREE.MathUtils.degToRad(55); // plano das órbitas x disco da galáxia
 const DERIVA_CAMERA = THREE.MathUtils.degToRad(35); // a câmera gira devagar em volta do sistema
 const RAIO_ORBITA = 34; // a volta em Saturno começa a esta distância do centro (anéis vão até 28)...
-const VARIACAO_ORBITA = 12; // ...abre até 46 do outro lado (volta menos "certinha")...
-const BALANCO_ORBITA = 5; // ...e sobe e desce um pouco
+const VARIACAO_ORBITA = 12; // ...e abre do outro lado (volta menos "certinha")
 const RAIO_CAMERA = 74; // a câmera acompanha por fora, um pouco acima do plano da volta...
 const ATRASO_CAMERA = 0.6; // ...sempre ~35° atrás da estrela
 const VOLTAS_SATURNO = 3; // voltas em Saturno, cada vez mais rápido (a câmera dá a primeira junto)
 const ACELERACAO_SATURNO = 6; // no fim das voltas a estrela está 7 vezes mais rápida
 const SUBIDA = { voltas: 4.5, altura: 95, raioFinal: 2 }; // depois é lançada para cima numa espiral que vai afinando
 const TREMOR_SATURNO = 2.4; // a tela treme mais conforme a estrela acelera
+const INCLINACAO_VOLTAS = THREE.MathUtils.degToRad(58); // cada volta num plano bem inclinado...
+const GIRO_DAS_VOLTAS = THREE.MathUtils.degToRad(-300); // ...que gira ~100° a cada volta (voltas em pontos diferentes)
 // Galáxia, em coordenadas dela (disco no plano y = 0, núcleo na origem)
 const INCLINACAO_GALAXIA = THREE.MathUtils.degToRad(25); // disco inclinado para a câmera da explosão
 const BRACO_DA_ROTA = { braco: 2, de: 110, ate: 40 }; // a estrela entra pela ponta deste braço e vai por dentro dele até perto do núcleo
@@ -311,17 +312,23 @@ export class Viagem {
     });
     const fimArcos = arcos[arcos.length - 1].at(-1);
 
-    // voltas em torno de Saturno, entrando pela tangente; o raio abre do outro lado (cada vez
-    // menos, as voltas vão fechando) e a estrela sobe e desce cada vez mais (voltas menos "certinhas")
+    // voltas em torno de Saturno, entrando pela tangente. Cada volta é uma elipse num plano
+    // diferente (como o desenho de um átomo): o plano da órbita se inclina e vai girando em volta
+    // do eixo de Saturno, então as voltas cruzam em pontos diferentes em volta dele. Na última meia
+    // volta o plano volta a ficar reto, e de lá a estrela é lançada para cima
     const eixo = new THREE.Vector3().crossVectors(lado.clone().negate(), dEnt).normalize();
     const cimaVolta = eixo.clone().multiplyScalar(eixo.dot(base.cima) >= 0 ? 1 : -1);
     const total = Math.PI * 2 * VOLTAS_SATURNO;
     const noPlano = (fi, r, out) =>
       out.copy(C).addScaledVector(lado, -Math.cos(fi) * r).addScaledVector(dEnt, Math.sin(fi) * r);
+    const nodos = new THREE.Vector3();
     const naOrbita = (fi) => {
       const x = fi / total;
-      const r = RAIO_ORBITA - 1 + (VARIACAO_ORBITA - 1) * Math.sin(fi / 2) ** 2 * (1 - 0.4 * x);
-      return noPlano(fi, r, new THREE.Vector3()).addScaledVector(cimaVolta, (BALANCO_ORBITA + 8 * x) * Math.sin(fi));
+      const r = RAIO_ORBITA - 2 + (VARIACAO_ORBITA + 2) * Math.sin(fi / 2) ** 2 * (1 - 0.3 * x);
+      const p = noPlano(fi, r, new THREE.Vector3()).sub(C);
+      const inclinacao = INCLINACAO_VOLTAS * smoothstep(0, Math.PI * 0.9, fi) * (1 - smoothstep(total - Math.PI, total, fi));
+      nodos.copy(lado).negate().applyAxisAngle(cimaVolta, GIRO_DAS_VOLTAS * x + 0.6);
+      return p.applyAxisAngle(nodos, inclinacao).add(C);
     };
     const orbita = [];
     const nOrb = Math.ceil(total / 0.22);
@@ -331,7 +338,7 @@ export class Viagem {
     // lançada para cima: espiral em volta do eixo de Saturno, no mesmo sentido das voltas, que vai
     // afinando enquanto sobe (e freando, até quase parar lá em cima, onde explode)
     const subida = [];
-    const raio0 = RAIO_ORBITA - 1;
+    const raio0 = RAIO_ORBITA - 2;
     const nSub = Math.ceil((SUBIDA.voltas * Math.PI * 2) / 0.25);
     for (let k = 1; k <= nSub; k++) {
       const u = k / nSub;
@@ -612,7 +619,7 @@ export class Viagem {
       const [, , sJ, sM] = this.sPlanetas;
       f *= lerp(1, 0.45, smoothstep(sJ - 40, sJ + 20, s) * (1 - smoothstep(sM - 20, sM + 30, s)));
       // as voltas em Saturno começam devagar e vão acelerando...
-      f *= lerp(1, 0.53, smoothstep(this.sOrbIni - 60, this.sOrbIni, s));
+      f *= lerp(1, 0.6, smoothstep(this.sOrbIni - 60, this.sOrbIni, s));
       const acel = smoothstep(this.sOrbIni + (this.sVolta1 - this.sOrbIni) * 0.3, this.sOrbFim, s);
       f *= 1 + ACELERACAO_SATURNO * acel * acel;
       // ...e na subida em espiral ela vai freando até quase parar lá em cima
