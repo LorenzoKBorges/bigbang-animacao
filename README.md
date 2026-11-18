@@ -9,7 +9,7 @@ Também funciona em qualquer hospedagem estática (GitHub Pages, Netlify, Vercel
 
 ## O que acontece
 
-São **29,5 segundos** do clique até a tela branca, tudo em tons de roxo.
+São **30 segundos** do clique até a tela branca, tudo em tons de roxo.
 
 | Tempo (após o clique) | Cena |
 | --- | --- |
@@ -24,10 +24,10 @@ São **29,5 segundos** do clique até a tela branca, tudo em tons de roxo.
 | 14,9 – 15,7 s | Ela sai pela tangente, reto para um pontinho brilhante noutro braço (o sistema solar, 400 vezes menor que ela), com a câmera sempre atrás dela. |
 | 15,7 – 17,5 s | **Lupa**: tudo é ampliado em volta do pontinho enquanto a câmera se afasta devagar. As estrelas do braço se espalham e passam pela câmera, e o pontinho vira o sistema solar inteiro. |
 | 17,5 – 20,4 s | Visto de longe, com os oito planetas girando no próprio eixo e em volta do sol: a estrela começa em Netuno e vai para Vênus e Júpiter, sempre em curvas abertas (estilingue gravitacional em cada planeta). |
-| 20,4 – 22,4 s | De Júpiter a Mercúrio a câmera desce até a estrela e a segue girando em volta da direção dela, em espiral. |
-| 22,4 – 26,4 s | A estrela voa para Saturno e começa a dar voltas em volta dele, cada vez mais rápido: três voltas, cada uma mais fechada e mais inclinada que a outra. A câmera dá a primeira volta junto e depois sobe para ver todas; conforme a estrela acelera, a tela treme cada vez mais. |
-| 26,4 – 27,45 s | Ela é **lançada para cima** numa espiral que vai afinando e freando, até quase parar lá no alto. |
-| 27,45 – 29,5 s | A estrela treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
+| 20,4 – 22,3 s | De Júpiter a Mercúrio a câmera desce até a estrela e a segue girando em volta da direção dela, em espiral. |
+| 22,3 – 26,3 s | A estrela voa para Saturno e começa a dar voltas em volta dele, cada vez mais rápido: três voltas, cada uma mais fechada e mais inclinada que a outra. A câmera dá a primeira volta junto e depois sobe para ver todas; conforme a estrela acelera, a tela treme cada vez mais. |
+| 26,3 – 27,75 s | Ela é **lançada para cima** numa espiral que vai afinando e freando, até quase parar lá no alto. |
+| 27,75 – 29,85 s | A estrela treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
 
 ## Colocando conteúdo depois da animação
 
