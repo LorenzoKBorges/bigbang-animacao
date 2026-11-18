@@ -17,11 +17,12 @@ São **15 segundos** do clique até a tela branca, tudo em tons de roxo.
 | 0 – 1,55 s | A pessoa clica (ou toca, ou aperta Enter/Espaço): o ponto treme, pulsa cada vez mais rápido, solta raios e implode. |
 | 1,55 s | **Big Bang**: clarão, ondas de choque, plasma roxo, nuvens de gás, protogaláxias, estrelas novas e rochas passando pela câmera. |
 | 2,45 – 3,4 s | A câmera voa até uma estrela roxa que se acende no meio da explosão. |
-| 3,4 – 4,3 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), atravessa um braço da galáxia por dentro, no meio das estrelas. |
-| 4,3 – 5,1 s | Ela voa até um pontinho brilhante num braço da galáxia; a câmera recua até ver a galáxia inteira. |
-| 5,1 – 6,6 s | **Lupa**: tudo é ampliado em volta do pontinho. As estrelas do braço se espalham, o pontinho vira o sol e aparece o sistema solar inteiro, com a galáxia virando a faixa do fundo. |
-| 6,6 – 10,1 s | Visto de longe, com os oito planetas girando no próprio eixo e em volta do sol: a estrela começa em Netuno, vai para Vênus, passa para Júpiter, volta para Mercúrio (estilingue gravitacional em cada um) e voa para Saturno. |
-| 10,1 – 13,15 s | A estrela dá uma volta completa (360°) em Saturno e a câmera dá a volta inteira junto com ela. Depois a estrela para ao lado de Saturno. |
+| 3,4 – 4,2 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), atravessa um braço da galáxia por dentro, no meio das estrelas. |
+| 4,2 – 5,0 s | Ela voa até um pontinho brilhante num braço da galáxia (o sistema solar, 400 vezes menor que ela); a câmera recua até ver a galáxia inteira. |
+| 5,0 – 6,3 s | **Lupa**: tudo é ampliado em volta do pontinho. As estrelas do braço se espalham e somem, e o pontinho vira o sistema solar inteiro. |
+| 6,3 – 8,4 s | Visto de longe, com os oito planetas girando no próprio eixo e em volta do sol: a estrela começa em Netuno e vai para Vênus e Júpiter, sempre em curvas abertas (estilingue gravitacional em cada planeta). |
+| 8,4 – 9,9 s | De Júpiter a Mercúrio a câmera desce até a estrela e a segue girando em volta da direção dela, em espiral. |
+| 9,9 – 13,15 s | A estrela voa para Saturno e dá uma volta completa (360°) em volta dele, mais aberta do outro lado; a câmera dá a volta inteira junto. Depois a estrela para ao lado de Saturno. |
 | 13,15 – 15 s | A estrela treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
 
 ## Colocando conteúdo depois da animação

@@ -127,6 +127,7 @@ export class Galaxia {
     }
     this.u = { uOpac: { value: 0 }, uT: { value: 0 }, uDestaque: { value: 0 }, uTamMul: { value: 1 } };
     this.ampliada = 1;
+    this.someNaLupa = 1;
     this.disco = pontos(
       geometria({ aR: [aR, 1], aAng: [aAng, 1], aY: [aY, 1], aCor: [aCor, 3], aTam: [aTam, 1], aSem: [aSem, 1] }, n),
       materialPontos({
@@ -165,6 +166,8 @@ export class Galaxia {
    */
   ampliar(pivo, fator, distanciaCamera = 0) {
     this.ampliada = fator;
+    // depois que a lupa passa pela galáxia ela some: o sistema solar fica limpo, sem estrelas na frente
+    this.someNaLupa = 1 - smoothstep(12, 70, fator);
     // ampliada, a galáxia vira o fundo: as estrelas entre a câmera e o sistema solar somem
     // (ficaria uma chuva de bolhas na frente dos planetas)
     this.disco.material.uniforms.uPerto.value = lerp(7, distanciaCamera * 1.15, smoothstep(2, 6, fator));
@@ -189,8 +192,8 @@ export class Galaxia {
   }
 
   atualizar(t, destaque, estrela, formacao) {
-    this.grupo.visible = formacao > 0.001;
-    this.u.uOpac.value = formacao;
+    this.grupo.visible = formacao * this.someNaLupa > 0.001;
+    this.u.uOpac.value = formacao * this.someNaLupa;
     this.u.uT.value = t;
     this.u.uDestaque.value = destaque;
     // ampliada, o brilho do núcleo cobriria tudo: some aos poucos
@@ -284,8 +287,8 @@ export class Planeta {
     this.luas = [];
     const rand = criarRng(404);
     for (const [raio, dist, vel, cor] of [
-      [2.2, 74, 0.22, '#c4b5d9'],
-      [1.4, 90, -0.16, '#dccbe8'],
+      [2.2, 95, 0.22, '#c4b5d9'],
+      [1.4, 112, -0.16, '#dccbe8'],
     ]) {
       const geo = new THREE.IcosahedronGeometry(raio, 3);
       const pp = geo.attributes.position;
