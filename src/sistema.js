@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { sprite } from './materiais.js';
+import { sprite, globais } from './materiais.js';
 import { texturaPlaneta } from './texturas.js';
 import { smoothstep } from './utils.js';
 
@@ -278,12 +278,13 @@ export class SistemaSolar {
     this.grupo.visible = formacao > 0.001;
     if (!this.grupo.visible) return;
     this.raiosSol.material.rotation = t * 0.05;
-    // quando o sistema ainda é um pontinho no braço, o brilho do sol é relativamente maior
-    // (senão ele sumiria); no tamanho final volta ao normal
-    const compensa = Math.pow(this.grupo.scale.x, -0.55);
-    this.coroa.scale.setScalar(75 * compensa * (1 + 0.03 * Math.sin(t * 2.3)));
-    this.raiosSol.scale.setScalar(120 * compensa);
-    this.coroa2.scale.setScalar(210 * Math.pow(this.grupo.scale.x, -0.3));
+    // quando o sistema ainda é um pontinho no braço, o brilho do sol tem um tamanho mínimo na tela
+    // (senão ele sumiria): proporcional à distância da câmera. No tamanho final volta ao normal
+    const e = this.grupo.scale.x;
+    const dCam = this.grupo.getWorldPosition(this._v).distanceTo(globais.camPos);
+    this.coroa.scale.setScalar((Math.hypot(75 * e, 0.0125 * dCam) / e) * (1 + 0.03 * Math.sin(t * 2.3)));
+    this.raiosSol.scale.setScalar(Math.hypot(120 * e, 0.02 * dCam) / e);
+    this.coroa2.scale.setScalar(Math.hypot(210 * e, 0.0078 * dCam) / e);
     this.materialOrbita.opacity = 0.22 * formacao;
     this.grupo.updateMatrixWorld();
     for (const p of this.planetas) {

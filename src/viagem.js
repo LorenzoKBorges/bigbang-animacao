@@ -28,6 +28,7 @@ const PARTIDA_ATRAS = 120; // a estrela começa fora do disco, na continuação 
 const PARTIDA_ALTURA = 90; // ...e acima dele (desce vendo a galáxia de cima)
 const RAIO_BURACO = 32; // a volta no buraco negro do núcleo (o disco de acreção vai até 33, inclinado)
 const ALTURA_BURACO = 6;
+const RAIO_BOLHA = 1.2; // sem estrelas da galáxia em volta do pontinho (ampliado 400x, fica fora do sistema solar)
 const RETA_ATE_PONTINHO = 60; // depois do buraco negro ela voa reto e começa a frear a esta distância do pontinho
 // De Júpiter a Mercúrio a câmera desce e segue a estrela girando em volta da direção dela (espiral)
 const VOLTAS_ESPIRAL = 1;
@@ -206,6 +207,7 @@ export function planejarRota(galaxia, inicio) {
     voltaBuraco.push(galaxia.mundo(new THREE.Vector3(Math.cos(a0 - u) * r, ALTURA_BURACO, Math.sin(a0 - u) * r)));
   }
   const sol = galaxia.mundo(melhor.S);
+  galaxia.definirBolha(melhor.S, RAIO_BOLHA);
   const saidaBuraco = voltaBuraco[voltaBuraco.length - 1];
   const dReta = sol.clone().sub(saidaBuraco);
   const antesDoPontinho = sol.clone().addScaledVector(dReta.clone().normalize(), -RETA_ATE_PONTINHO);
@@ -399,9 +401,15 @@ export class Viagem {
     }
 
     this.tabelaDeTempo();
-    // o recuo da câmera é medido em tempo (a estrela sai do braço rápida e vai freando)
-    this.tRecuoIni = this.tempoDe(this.sBuracoFim - 15);
-    this.tRecuoFim = this.tempoDe(this.sLupaIni - 10);
+    // onde a câmera de perseguição está (em relação ao sol) quando a lupa começa
+    {
+      const T = new THREE.Vector3();
+      const U = new THREE.Vector3();
+      const R = new THREE.Vector3();
+      const e = this.pontoBase(this.sLupaIni, new THREE.Vector3());
+      this.quadro(this.sLupaIni, T, U, R);
+      this.camLupa0 = this._perseguicao(this.sLupaIni, e, T, U, new THREE.Vector3(), new THREE.Vector3()).sub(this.sol);
+    }
 
     // ângulo (em volta de Saturno) onde a câmera começa a acompanhar a volta
     this.inicioCamera = lado.clone().negate().applyAxisAngle(this.eixoOrbita, -ATRASO_CAMERA);
@@ -665,6 +673,34 @@ export class Viagem {
    *    ela só se aproxima da estrela, sem girar, para a explosão final.
    * Preenche pos, alvo e cima; devolve o FOV.
    */
+  /**
+   * Câmera de perseguição em s. Na descida fica mais alta e afastada, olhando também para o centro
+   * da galáxia (para ver o disco inteiro); no braço, mais perto (no meio das estrelas); no buraco
+   * negro vai para fora da curva e para cima, olhando entre a estrela e o buraco (disco de acreção).
+   */
+  _perseguicao(s, estrela, T, U, pos, alvo) {
+    const noBraco = smoothstep(this.sBracoIni - 70, this.sBracoIni + 30, s);
+    const noBuraco = smoothstep(this.sBracoFim - 40, this.sBracoFim + 30, s) * (1 - smoothstep(this.sBuracoFim - 45, this.sBuracoFim + 5, s));
+    const fora = (this._fo ??= new THREE.Vector3()).subVectors(estrela, this.buraco);
+    fora.addScaledVector(this.normalGalaxia, -fora.dot(this.normalGalaxia)).normalize();
+    pos
+      .copy(estrela)
+      .addScaledVector(T, -lerp(lerp(32, 18, noBraco), 20, noBuraco))
+      .addScaledVector(U, lerp(lerp(16, 6, noBraco), 14, noBuraco))
+      .addScaledVector(fora, 18 * noBuraco);
+    // (olha um pouco além da estrela, na direção do centro: a estrela continua no quadro)
+    alvo.subVectors(this.centroGalaxia, estrela).setLength(24 * (1 - noBraco));
+    alvo.add(estrela).lerp(this.buraco, 0.4 * noBuraco);
+    return pos;
+  }
+
+  /** Quanto da lupa já passou em s (0 antes, 1 depois), com começo e fim suaves. */
+  progressoLupa(s) {
+    const a = this._interp1(this.ampliacaoEm, s);
+    const u = clamp(Math.log(a / this.sigma0) / Math.log(1 / this.sigma0));
+    return u * u * u * (u * (u * 6 - 15) + 10);
+  }
+
   camera(t, pos, alvo, cima) {
     const s = this.sEm(t);
     const estrela = this.pontoBase(s, (this._B ??= new THREE.Vector3()));
@@ -675,32 +711,21 @@ export class Viagem {
     const U = (this._cU ??= new THREE.Vector3());
     const R = (this._cR ??= new THREE.Vector3());
     this.quadro(s, T, U, R);
-    // na descida a câmera fica mais alta e afastada, olhando também para o centro da galáxia
-    // (para ver o disco inteiro); no braço, mais perto (no meio das estrelas); no buraco negro vai
-    // para fora da curva e para cima, olhando entre a estrela e o buraco (mostra o disco de acreção)
-    const noBraco = smoothstep(this.sBracoIni - 70, this.sBracoIni + 30, s);
-    const noBuraco = smoothstep(this.sBracoFim - 40, this.sBracoFim + 30, s) * (1 - smoothstep(this.sBuracoFim - 45, this.sBuracoFim + 5, s));
-    const fora = (this._fo ??= new THREE.Vector3()).subVectors(estrela, this.buraco);
-    fora.addScaledVector(this.normalGalaxia, -fora.dot(this.normalGalaxia)).normalize();
-    const pPers = (this._pP ??= new THREE.Vector3())
-      .copy(estrela)
-      .addScaledVector(T, -lerp(lerp(32, 18, noBraco), 20, noBuraco))
-      .addScaledVector(U, lerp(lerp(16, 6, noBraco), 14, noBuraco))
-      .addScaledVector(fora, 18 * noBuraco);
-    // (olha um pouco além da estrela, na direção do centro: a estrela continua no quadro)
-    const aPers = (this._aP ??= new THREE.Vector3()).subVectors(this.centroGalaxia, estrela).setLength(24 * (1 - noBraco));
-    aPers.add(estrela).lerp(this.buraco, 0.4 * noBuraco);
+    const pPers = this._perseguicao(s, estrela, T, U, (this._pP ??= new THREE.Vector3()), (this._aP ??= new THREE.Vector3()));
+    const aPers = this._aP;
 
-    // --- de longe (galáxia, lupa e sistema solar)
+    // --- de longe (sistema solar inteiro, girando devagar em volta dele)
     const andamento = smoothstep(this.sLupaFim - 40, sJupiter, s);
     const pLonge = (this._pL ??= new THREE.Vector3())
       .subVectors(this.cameraSistema, this.sol)
       .applyAxisAngle(this.cimaSistema, DERIVA_CAMERA * andamento)
       .multiplyScalar(lerp(1, 0.9, andamento))
       .add(this.sol);
-    // olha para a estrela enquanto ela voa até o pontinho; depois entre o sol e a estrela
-    const recuo = smoothstep(this.tRecuoIni, this.tRecuoFim, t);
-    const aLonge = (this._aL ??= new THREE.Vector3()).copy(this.sol).lerp(estrela, lerp(1, 0.35, recuo));
+    // --- a lupa: a câmera não recua antes; continua atrás da estrela até o pontinho e, enquanto
+    //     tudo é ampliado, vai em arco em volta do sol até a posição de onde se vê o sistema inteiro
+    const zoom = this.progressoLupa(s);
+    const pLupa = (this._pZ ??= new THREE.Vector3()).copy(this.sol).add(this.camLupa0);
+    const aLonge = (this._aL ??= new THREE.Vector3()).copy(this.sol).lerp(estrela, lerp(1, 0.35, zoom));
 
     // --- espiral (de Júpiter a Mercúrio): atrás da estrela, girando em volta da direção dela
     const fi = this._interp1(this.anguloEspiral, s);
@@ -729,11 +754,11 @@ export class Viagem {
     // (andar em linha reta faria a câmera, quando está perto da estrela, girar de repente)
     const wEsp = smoothstep(this.tEspiralIni, this.tEspiralCheia, t);
     const wSat = smoothstep(sMercurio + 10, this.sOrbIni + 30, s);
-    const p1 = this._emArco(estrela, pPers, pLonge, recuo, (this._p1 ??= new THREE.Vector3()));
+    const p1 = zoom <= 0 ? pPers : this._emArco(this.sol, pLupa, pLonge, zoom, (this._p1 ??= new THREE.Vector3()));
     const p2 = this._emArco(estrela, p1, pEsp, wEsp, (this._p2 ??= new THREE.Vector3()));
     this._emArco(estrela, p2, perto, wSat, pos);
-    alvo.copy(aPers).lerp(aLonge, recuo).lerp(aEsp, wEsp).lerp(aSat, wSat);
-    cima.copy(U).lerp(this.cimaSistema, recuo).lerp(U, wEsp).lerp(this.cimaOrbita, wSat).normalize();
+    alvo.copy(aPers).lerp(aLonge, zoom).lerp(aEsp, wEsp).lerp(aSat, wSat);
+    cima.copy(U).lerp(this.cimaSistema, zoom).lerp(U, wEsp).lerp(this.cimaOrbita, wSat).normalize();
     return 60;
   }
 

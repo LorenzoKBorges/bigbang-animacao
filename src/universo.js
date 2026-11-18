@@ -266,7 +266,14 @@ export class Galaxia {
       aTam[i] = tam;
       aSem[i] = rand();
     }
-    this.u = { uOpac: { value: 0 }, uT: { value: 0 }, uDestaque: { value: 0 }, uTamMul: { value: 1 } };
+    this.u = {
+      uOpac: { value: 0 },
+      uT: { value: 0 },
+      uDestaque: { value: 0 },
+      uTamMul: { value: 1 },
+      uBolha: { value: new THREE.Vector3(1e5, 0, 0) },
+      uBolhaR: { value: 0 },
+    };
     this.ampliada = 1;
     this.someNaLupa = 1;
     this.disco = pontos(
@@ -277,12 +284,15 @@ export class Galaxia {
         cabecalho: /* glsl */ `
           attribute float aR; attribute float aAng; attribute float aY; attribute vec3 aCor; attribute float aTam; attribute float aSem;
           uniform float uOpac; uniform float uT; uniform float uDestaque; uniform float uTamMul;
+          uniform vec3 uBolha; uniform float uBolhaR;
         `,
         corpo: /* glsl */ `
           pos = vec3(cos(aAng) * aR, aY, sin(aAng) * aR);
           cor = aCor * (1.0 + uDestaque * 0.35) * (1.0 + 0.5 * smoothstep(2.0, 20.0, uTamMul));
           tam = aTam * (1.0 + uDestaque * 0.2) * uTamMul;
           alfa = uOpac * (0.85 + 0.15 * sin(uT * 2.0 + aSem * 50.0));
+          // em volta do sistema solar não há estrelas (assim, ampliado, nenhuma fica no meio dele)
+          alfa *= smoothstep(uBolhaR * 0.7, uBolhaR, distance(pos, uBolha));
         `,
       })
     );
@@ -311,14 +321,22 @@ export class Galaxia {
    * A "lupa": amplia a galáxia `fator` vezes em volta do ponto `pivo` (onde está o sistema solar).
    * As estrelas se espalham e crescem um pouco; depois a galáxia some e o sistema solar fica limpo.
    */
+  /** Esvazia uma bolha de raio `r` (coordenadas da galáxia) em volta do sistema solar. */
+  definirBolha(local, r) {
+    this.u.uBolha.value.copy(local);
+    this.u.uBolhaR.value = r;
+  }
+
   ampliar(pivo, fator, distanciaCamera = 0) {
     this.ampliada = fator;
-    this.someNaLupa = 1 - smoothstep(12, 70, fator);
-    // ampliada, as estrelas entre a câmera e o sistema solar somem (seriam bolhas na frente dos planetas)
-    this.disco.material.uniforms.uPerto.value = lerp(7, distanciaCamera * 1.15, smoothstep(2, 6, fator));
+    // as estrelas não crescem junto com a ampliação: elas se espalham, passam pela câmera e as de
+    // longe viram poeira. A galáxia só é desligada no fim, quando o que sobrou já é quase invisível
+    this.someNaLupa = 1 - smoothstep(150, 390, fator);
+    // estrelas muito perto da câmera somem (passam por ela)
+    this.disco.material.uniforms.uPerto.value = Math.max(7, distanciaCamera * 0.3);
     this.grupo.position.copy(this.centro).sub(pivo).multiplyScalar(fator).add(pivo);
     this.grupo.scale.setScalar(fator);
-    this.u.uTamMul.value = Math.pow(fator, 0.95);
+    this.u.uTamMul.value = Math.pow(fator, 0.4);
   }
 
   /** Centro do braço em coordenadas da galáxia (plano do disco: y = 0). */
