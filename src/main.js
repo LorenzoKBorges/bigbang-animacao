@@ -30,17 +30,17 @@ import {
 // ------------------------------------------------------------------
 // Linha do tempo (segundos contados a partir do clique)
 // ------------------------------------------------------------------
-// Total: ~29,5 segundos do clique até a tela branca.
+// Total: ~29,85 segundos do clique até a tela branca.
 const CARGA = 2.0; // sobrecarga: treme, pulsa cada vez mais rápido
 const BANG = CARGA + 0.25; // implosão rápida e... BUM (2,25 s)
 const FOCO_INI = BANG + 2.2; // a câmera, parada, assiste à explosão; depois vira para a estrela...
 const FOCO_FIM = BANG + 5.0; // ...e vai devagar até ficar atrás dela (7,25 s)
 // a viagem: galáxia (braço com nebulosa, buraco negro), lupa, sistema solar, voltas em Saturno e subida em espiral
 const VIAGEM_INI = FOCO_FIM;
-const VIAGEM_DUR = 20.2;
-const FINAL_INI = VIAGEM_INI + VIAGEM_DUR; // lá no alto da espiral a estrela para e treme (27,45 s)
+const VIAGEM_DUR = 20.5;
+const FINAL_INI = VIAGEM_INI + VIAGEM_DUR; // lá no alto da espiral a estrela para e treme (27,75 s)
 const SUPERNOVA = FINAL_INI + 1.2; // ela explode
-const BRANCO = SUPERNOVA + 0.9; // tela 100% branca (~29,5 s)
+const BRANCO = SUPERNOVA + 0.9; // tela 100% branca (~29,85 s)
 
 // Batida do coração e fluxo de energia (a frequência sobe durante a carga)
 const BATIDA_0 = 0.85;

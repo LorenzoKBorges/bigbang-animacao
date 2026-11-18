@@ -20,7 +20,7 @@ const RAIO_CAMERA = 74; // a câmera acompanha por fora, um pouco acima do plano
 const ATRASO_CAMERA = 0.6; // ...sempre ~35° atrás da estrela
 const VOLTAS_SATURNO = 3; // voltas em Saturno, cada vez mais rápido (a câmera dá a primeira junto)
 const ACELERACAO_SATURNO = 6; // no fim das voltas a estrela está 7 vezes mais rápida
-const SUBIDA = { voltas: 3.5, altura: 150, raioFinal: 2 }; // depois é lançada para cima numa espiral que vai afinando
+const SUBIDA = { voltas: 4.5, altura: 95, raioFinal: 2 }; // depois é lançada para cima numa espiral que vai afinando
 const TREMOR_SATURNO = 2.4; // a tela treme mais conforme a estrela acelera
 // Galáxia, em coordenadas dela (disco no plano y = 0, núcleo na origem)
 const INCLINACAO_GALAXIA = THREE.MathUtils.degToRad(25); // disco inclinado para a câmera da explosão
@@ -616,7 +616,7 @@ export class Viagem {
       const acel = smoothstep(this.sOrbIni + (this.sVolta1 - this.sOrbIni) * 0.3, this.sOrbFim, s);
       f *= 1 + ACELERACAO_SATURNO * acel * acel;
       // ...e na subida em espiral ela vai freando até quase parar lá em cima
-      f *= lerp(1, 0.15, Math.pow(smoothstep(this.sOrbFim, this.L, s), 0.8));
+      f *= lerp(1, 0.1, Math.pow(smoothstep(this.sOrbFim, this.L, s), 0.8));
     }
     // começo: sai do repouso
     f *= lerp(0.06, 1, smoothstep(0, 30, s));
@@ -784,7 +784,7 @@ export class Viagem {
       .addScaledVector(dirCam, lerp(lerp(RAIO_CAMERA, 108, abre), 85, sobe))
       .addScaledVector(this.cimaOrbita, lerp(20, 46, abre) * (1 - sobe))
       // (fica mais baixa que a estrela, olhando para cima: as voltas da espiral aparecem abertas)
-      .addScaledVector(this.cimaVolta, Math.max(0, altura) * 0.35 * sobe);
+      .addScaledVector(this.cimaVolta, Math.max(0, altura) * 0.2 * sobe);
     const aSat = (this._aS ??= new THREE.Vector3()).lerpVectors(this.saturno, estrela, lerp(lerp(0.3, 0.12, abre), 1, sobe));
     const perto = pSat;
 
