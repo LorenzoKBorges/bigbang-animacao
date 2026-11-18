@@ -76,7 +76,7 @@ class Rastro {
   }
 
   /** posicao(i, out) devolve a posição do ponto i (0 = mais novo). */
-  atualizar(posicao, opac) {
+  atualizar(posicao, opac, larguraMul = 1) {
     this.u.uOpac.value = opac;
     this.malha.visible = opac > 0.001;
     if (!this.malha.visible) return;
@@ -92,7 +92,7 @@ class Rastro {
         const lado = d.cross(this._olhar);
         if (lado.lengthSq() > 1e-10) this._lado.copy(lado).normalize();
       }
-      const w = this.largura * (1 - (i / (n - 1)) * 0.75);
+      const w = this.largura * larguraMul * (1 - (i / (n - 1)) * 0.75);
       const k = i * 6;
       pos[k] = P[i].x - this._lado.x * w;
       pos[k + 1] = P[i].y - this._lado.y * w;
@@ -179,7 +179,8 @@ export class Estrela {
     if (e.tremor > 0) this.grupo.position.add(tremor(t, e.tremor, this._t, 26));
 
     const b = e.brilho;
-    const s = e.escala;
+    const v = e.escalaVisual ?? 1; // vista de longe a estrela fica maior na tela, para não sumir
+    const s = e.escala * v;
     const pulso = 1 + 0.06 * Math.sin(t * 5.1) + 0.04 * Math.sin(t * 13.7);
     this.nucleo.scale.setScalar(1.6 * s * pulso);
     this.halo.scale.setScalar(4.5 * s * pulso * (0.8 + 0.2 * b));
@@ -195,7 +196,7 @@ export class Estrela {
     this.luz.color.copy(COR_LUZ).lerp(COR_LUZ_LIMITE, e.limite);
 
     // rastro: posições da estrela nos últimos ~2,2 s
-    this.rastro.atualizar((i, out) => posEm(t - i / 100, out), e.rastro);
+    this.rastro.atualizar((i, out) => posEm(t - i / 100, out), e.rastro, v);
 
     for (const m of this.malabares) {
       const fr = e.raioMalabares(t);
@@ -206,13 +207,14 @@ export class Estrela {
       }
       this.deslocamento(m, t, fr, m.grupo.position).add(this.grupo.position);
       const brilhoM = Math.min(1, fr * 1.5) * Math.min(1.3, b);
+      m.grupo.scale.setScalar(v);
       m.brilho.material.opacity = 0.8 * brilhoM;
       m.miolo.material.opacity = brilhoM;
       m.rastro.atualizar((i, out) => {
         const ti = t - i / 130;
         posEm(ti, out);
         return out.add(this.deslocamento(m, ti, e.raioMalabares(ti), this._a));
-      }, Math.min(1, fr * 1.2) * e.rastro);
+      }, Math.min(1, fr * 1.2) * e.rastro, v);
     }
   }
 }

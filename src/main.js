@@ -12,8 +12,7 @@ import { Explosao } from './explosao.js';
 import { Ceu, Galaxia, Planeta, PoeiraViagem } from './universo.js';
 import { Estrela } from './estrela.js';
 import { Viagem, planejarRota } from './viagem.js';
-import { SistemaSolar, PLANETAS } from './sistema.js';
-import { Salto } from './salto.js';
+import { SistemaSolar } from './sistema.js';
 import { Raios } from './raios.js';
 import {
   clamp,
@@ -36,7 +35,7 @@ const CARGA = 1.3; // sobrecarga: treme, pulsa cada vez mais rápido
 const BANG = CARGA + 0.25; // implosão rápida e... BUM (1,55 s)
 const FOCO_INI = BANG + 0.9; // a câmera voa até a estrela
 const FOCO_FIM = BANG + 1.85;
-// a viagem (3,4 s): braço da galáxia, salto, estilingues no sistema solar e volta em Saturno
+// a viagem (3,4 s): braço da galáxia, lupa até o sistema solar, estilingues e volta em Saturno
 const VIAGEM_INI = FOCO_FIM;
 const VIAGEM_DUR = 9.75;
 const FINAL_INI = VIAGEM_INI + VIAGEM_DUR; // a estrela para ao lado de Saturno e treme (13,15 s)
@@ -140,29 +139,27 @@ function iniciar() {
   const bigbang = new Explosao(cena, tex, { qualidade: q, semente: 7 });
   const ceu = new Ceu(cena, tex, q);
   const galaxia = new Galaxia(cena, tex, q, new THREE.Vector3());
-  // a rota posiciona a galáxia e diz onde Saturno fica (flutuando acima dela)
-  const rota = planejarRota(galaxia, H0, BRACO, PLANETAS.map((p) => p.raio));
+  // a rota posiciona a galáxia e escolhe o pontinho do braço onde está o sistema solar
+  const rota = planejarRota(galaxia, H0, BRACO);
+  const sistema = new SistemaSolar(cena, tex, rota.base);
   const planeta = new Planeta(cena, tex, q, rota.saturno);
-  const sistema = new SistemaSolar(cena, tex, rota);
+  sistema.adotarSaturno(planeta, rota.grausSaturno);
 
   const viagem = new Viagem({ inicio: H0, galaxia, planeta, rota }, VIAGEM_DUR);
-  planeta.inclinarAneis(viagem.normalDosAneis());
-  // cada planeta chega ao ponto do encontro na hora exata em que a estrela passa
-  sistema.sincronizar(viagem.sPlanetas.map((s) => VIAGEM_INI + viagem.tempoDe(s)));
-
-  // o salto: intensidade (0..1) em cada instante, e quando a estrela parte e chega
-  const intensidadeSalto = (x) => (x > VIAGEM_INI && x < FINAL_INI ? viagem.intensidadeSalto(x - VIAGEM_INI) : 0);
-  let partida = 0;
-  let chegada = 0;
-  for (let x = VIAGEM_INI; x < FINAL_INI; x += 0.005) {
-    const i = intensidadeSalto(x);
-    if (!partida && i > 0.5) partida = x;
-    if (partida && !chegada && i < 0.5) chegada = x;
-  }
-  const salto = new Salto(cena, q);
+  planeta.inclinarAneis(sistema.direcaoLocal(viagem.normalDosAneis()));
+  // cada planeta visitado chega ao ponto do encontro na hora exata em que a estrela passa
+  sistema.sincronizar(
+    Object.fromEntries(viagem.encontros.map((e) => [e.nome, { graus: e.graus, t: VIAGEM_INI + viagem.tempoDe(e.s) }]))
+  );
+  // os planetas que a estrela não visita ficam longe do caminho dela
+  sistema.afastarDaRota((x, out) => viagem.estrelaEm(x - VIAGEM_INI, out), VIAGEM_INI + viagem.tempoDe(viagem.sLupaFim), FINAL_INI);
+  // quando a estrela começa a ir até o pontinho do braço e quando a lupa começa
+  const tAproximacao = VIAGEM_INI + viagem.tempoDe(viagem.sBracoFim);
+  const tLupa = VIAGEM_INI + viagem.tempoDe(viagem.sLupaIni);
+  const tLupaFim = VIAGEM_INI + viagem.tempoDe(viagem.sLupaFim);
+  const ampliacao = (x) => (x < VIAGEM_INI ? viagem.sigma0 : viagem.ampliacao(Math.min(x, FINAL_INI) - VIAGEM_INI));
   const poeira = new PoeiraViagem(cena, q, viagem);
   const estrela = new Estrela(cena, tex);
-  const marcos = { galaxia, planeta };
 
   // Depois da viagem a estrela ainda desliza um pouco antes de parar
   const fimViagem = viagem.pontoBase(viagem.L, new THREE.Vector3());
@@ -355,7 +352,7 @@ function iniciar() {
   }
 
   // ---------------- quadro a quadro ----------------
-  const zero = { galaxia: 0, planeta: 0 };
+  const zero = { planeta: 0 };
   let ultimo = performance.now();
 
   function quadro(agora) {
@@ -388,14 +385,24 @@ function iniciar() {
 
     // --- Big Bang
     bigbang.atualizar(estado === 'ocioso' ? -1 : t - BANG);
-    bigbang.opacidade = lerp(1, 0.6, smoothstep(FOCO_INI, FOCO_FIM, t));
+    // os restos da explosão somem enquanto a estrela voa até o pontinho do braço
+    const restos = 1 - smoothstep(tAproximacao, tLupa, t);
+    bigbang.opacidade = lerp(1, 0.6, smoothstep(FOCO_INI, FOCO_FIM, t)) * restos;
+    if (restos < 0.01) bigbang.grupo.visible = false;
+
+    // --- a lupa: o sistema solar cresce de um pontinho até o tamanho final, e a galáxia junto
+    const amp = estado === 'ocioso' ? viagem.sigma0 : ampliacao(t);
+    sistema.escala = amp;
+    galaxia.ampliar(viagem.sol, amp / viagem.sigma0, camera.position.distanceTo(viagem.sol));
 
     // --- universo
     const formacao = estado === 'ocioso' ? 0 : smoothstep(BANG + 0.3, BANG + 2.0, t);
     posEstrela(t, estrelaPos);
     const dest = t > VIAGEM_INI - 0.5 && t < SUPERNOVA ? viagem.destaques(estrelaPos) : zero;
-    // (o relógio da galáxia é o tempo desde o clique: assim o braço está onde a rota espera)
-    for (const [nome, obj] of Object.entries(marcos)) obj.atualizar(t, dest[nome] ?? 0, estrelaPos, formacao);
+    // (o relógio da galáxia é o tempo desde o clique: assim o braço está onde a rota espera;
+    //  ela para de girar quando a lupa começa, senão o pontinho sairia de baixo do sistema solar)
+    galaxia.atualizar(Math.min(t, tLupa), dest.galaxia ?? 0, estrelaPos, formacao);
+    planeta.atualizar(t, dest.planeta ?? 0, estrelaPos, formacao);
     sistema.atualizar(t, estrelaPos, formacao);
     poeira.atualizar(estado === 'ocioso' ? 0 : smoothstep(BANG + 0.8, BANG + 2.4, t) * (1 - smoothstep(SUPERNOVA, SUPERNOVA + 0.4, t)));
 
@@ -409,7 +416,7 @@ function iniciar() {
     estrela.atualizar(t, posEstrela, {
       visivel: viva,
       brilho:
-        (lerp(0.55, 1.2, smoothstep(0.5, 1.2, te)) + 1.4 * acende + 0.6 * kFinal + 0.9 * intensidadeSalto(t)) *
+        (lerp(0.55, 1.2, smoothstep(0.5, 1.2, te)) + 1.4 * acende + 0.6 * kFinal) *
         piscada *
         lerp(1, 0.4, contrai),
       escala: lerp(0.55, 1, smoothstep(0.5, 1.3, te)) * (1 + 0.7 * kFinal * kFinal) * lerp(1, 0.12, contrai),
@@ -417,11 +424,10 @@ function iniciar() {
       limite: kFinal,
       luz: 55 * smoothstep(0.6, 1.4, te) * (1 + 2 * kFinal),
       rastro: smoothstep(0.05, 0.3, te) * (1 - smoothstep(FINAL_INI + 0.1, FINAL_INI + 0.7, t)),
-      // no salto os malabares se recolhem perto da estrela
       raioMalabares: (x) =>
-        smoothstep(FOCO_INI - 0.6, FOCO_FIM - 0.3, x) *
-        (1 - easeInQuad(progresso(FINAL_INI + 0.05, FINAL_INI + 0.75, x))) *
-        lerp(1, 0.35, intensidadeSalto(x)),
+        smoothstep(FOCO_INI - 0.6, FOCO_FIM - 0.3, x) * (1 - easeInQuad(progresso(FINAL_INI + 0.05, FINAL_INI + 0.75, x))),
+      // vista de longe (sistema solar inteiro), a estrela e o rastro ficam maiores para não sumir
+      escalaVisual: clamp(Math.sqrt(camera.position.distanceTo(estrelaPos) / 28), 1, 4.5),
     });
     if (viva && kFinal > 0.05 && contrai < 0.5) {
       grupoRaiosEstrela.position.copy(estrela.grupo.position);
@@ -435,7 +441,6 @@ function iniciar() {
     ceu.atualizar(relogio, camera, estado === 'ocioso' ? 0 : smoothstep(BANG + 0.2, BANG + 1.8, t));
 
     dirigirCamera(t, carga);
-    salto.atualizar(relogio, camera, estado === 'ocioso' ? 0 : intensidadeSalto(t));
     luzFrontal.position.copy(camera.position);
     luzFrontal.intensity = estado === 'ocioso' ? 0 : 3 * janela(t - BANG, 0, 0.15, 0.8, 2.6);
 
@@ -443,9 +448,6 @@ function iniciar() {
     let branco = 0;
     if (estado !== 'ocioso') {
       if (t >= BANG) branco = 0.85 * Math.exp(-(t - BANG) * 4.5);
-      // clarões curtos quando a estrela entra no salto e quando chega no sistema solar
-      if (partida && t >= partida) branco += 0.25 * Math.exp(-(t - partida) * 9);
-      if (chegada && t >= chegada) branco += 0.55 * Math.exp(-(t - chegada) * 6);
       if (t >= SUPERNOVA) {
         const r = progresso(SUPERNOVA, BRANCO, t);
         const pop = 0.22 * Math.exp(-(t - SUPERNOVA) * 8);
@@ -457,7 +459,8 @@ function iniciar() {
       estado === 'ocioso' || t < BANG
         ? 0.75
         : lerp(0.5, 0.95, janela(t, FOCO_INI, FOCO_INI + 0.6, FOCO_FIM - 0.3, FOCO_FIM + 0.8)) +
-          0.25 * smoothstep(FINAL_INI, SUPERNOVA, t) -
+          0.25 * smoothstep(FINAL_INI, SUPERNOVA, t) +
+          0.3 * janela(t, tLupa - 0.4, tLupa + 0.2, tLupaFim - 0.3, tLupaFim + 0.4) -
           smoothstep(SUPERNOVA, SUPERNOVA + 0.4, t);
     el.vinheta.style.opacity = clamp(vin).toFixed(3);
 

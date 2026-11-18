@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { materialPontos, geometria, pontos, sprite, longeDaCamera } from './materiais.js';
-import { criarRng, gauss, naEsfera, smoothstep } from './utils.js';
+import { criarRng, gauss, naEsfera, smoothstep, lerp } from './utils.js';
 
 // O universo depois do Big Bang: céu, a galáxia e Saturno.
 // Cada "marco" tem: centro, raio (alcance do destaque), atualizar(t, destaque, posEstrela) e formacao (0..1).
@@ -125,7 +125,8 @@ export class Galaxia {
       aTam[i] = tam;
       aSem[i] = rand();
     }
-    this.u = { uOpac: { value: 0 }, uT: { value: 0 }, uDestaque: { value: 0 } };
+    this.u = { uOpac: { value: 0 }, uT: { value: 0 }, uDestaque: { value: 0 }, uTamMul: { value: 1 } };
+    this.ampliada = 1;
     this.disco = pontos(
       geometria({ aR: [aR, 1], aAng: [aAng, 1], aY: [aY, 1], aCor: [aCor, 3], aTam: [aTam, 1], aSem: [aSem, 1] }, n),
       materialPontos({
@@ -133,14 +134,14 @@ export class Galaxia {
         perto: 7,
         cabecalho: /* glsl */ `
           attribute float aR; attribute float aAng; attribute float aY; attribute vec3 aCor; attribute float aTam; attribute float aSem;
-          uniform float uOpac; uniform float uT; uniform float uDestaque;
+          uniform float uOpac; uniform float uT; uniform float uDestaque; uniform float uTamMul;
         `,
         corpo: /* glsl */ `
           float w = 1.0 / (0.35 + aR / 22.0);
           float ang = aAng - uT * w * 0.1;
           pos = vec3(cos(ang) * aR, aY, sin(ang) * aR);
-          cor = aCor * (0.8 + uDestaque * 0.45);
-          tam = aTam * (1.0 + uDestaque * 0.25);
+          cor = aCor * (0.8 + uDestaque * 0.45) * (1.0 + 0.5 * smoothstep(2.0, 20.0, uTamMul));
+          tam = aTam * (1.0 + uDestaque * 0.25) * uTamMul;
           alfa = uOpac * (0.85 + 0.15 * sin(uT * 2.0 + aSem * 50.0));
         `,
       })
@@ -156,6 +157,20 @@ export class Galaxia {
     this.centro.copy(centro);
     this.grupo.position.copy(centro);
     this.grupo.updateMatrixWorld();
+  }
+
+  /**
+   * A "lupa": amplia a galáxia `fator` vezes em volta do ponto `pivo` (onde está o sistema solar).
+   * As estrelas se espalham e crescem um pouco, até virarem a faixa de fundo do sistema solar.
+   */
+  ampliar(pivo, fator, distanciaCamera = 0) {
+    this.ampliada = fator;
+    // ampliada, a galáxia vira o fundo: as estrelas entre a câmera e o sistema solar somem
+    // (ficaria uma chuva de bolhas na frente dos planetas)
+    this.disco.material.uniforms.uPerto.value = lerp(7, distanciaCamera * 1.15, smoothstep(2, 6, fator));
+    this.grupo.position.copy(this.centro).sub(pivo).multiplyScalar(fator).add(pivo);
+    this.grupo.scale.setScalar(fator);
+    this.u.uTamMul.value = Math.pow(fator, 0.95);
   }
 
   /**
@@ -178,8 +193,10 @@ export class Galaxia {
     this.u.uOpac.value = formacao;
     this.u.uT.value = t;
     this.u.uDestaque.value = destaque;
-    this.nucleo.material.opacity = (0.6 + destaque * 0.25) * formacao * longeDaCamera(this.nucleo);
-    this.halo.material.opacity = (0.1 + destaque * 0.05) * formacao * longeDaCamera(this.halo);
+    // ampliada, o brilho do núcleo cobriria tudo: some aos poucos
+    const ampliacao = smoothstep(6, 1.5, this.ampliada);
+    this.nucleo.material.opacity = (0.6 + destaque * 0.25) * formacao * longeDaCamera(this.nucleo) * ampliacao;
+    this.halo.material.opacity = (0.1 + destaque * 0.05) * formacao * longeDaCamera(this.halo) * ampliacao;
   }
 }
 
