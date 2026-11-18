@@ -686,10 +686,9 @@ export class Viagem {
       .addScaledVector(T, -lerp(lerp(32, 18, noBraco), 20, noBuraco))
       .addScaledVector(U, lerp(lerp(16, 6, noBraco), 14, noBuraco))
       .addScaledVector(fora, 18 * noBuraco);
-    const aPers = (this._aP ??= new THREE.Vector3())
-      .copy(estrela)
-      .lerp(this.centroGalaxia, 0.4 * (1 - noBraco))
-      .lerp(this.buraco, 0.4 * noBuraco);
+    // (olha um pouco além da estrela, na direção do centro: a estrela continua no quadro)
+    const aPers = (this._aP ??= new THREE.Vector3()).subVectors(this.centroGalaxia, estrela).setLength(24 * (1 - noBraco));
+    aPers.add(estrela).lerp(this.buraco, 0.4 * noBuraco);
 
     // --- de longe (galáxia, lupa e sistema solar)
     const andamento = smoothstep(this.sLupaFim - 40, sJupiter, s);
