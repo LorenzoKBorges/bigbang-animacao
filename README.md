@@ -9,21 +9,24 @@ Também funciona em qualquer hospedagem estática (GitHub Pages, Netlify, Vercel
 
 ## O que acontece
 
-São **15 segundos** do clique até a tela branca, tudo em tons de roxo.
+São **29 segundos** do clique até a tela branca, tudo em tons de roxo.
 
 | Tempo (após o clique) | Cena |
 | --- | --- |
 | antes do clique | Um ponto branco-arroxeado pulsa no meio do espaço, puxando partículas de energia. |
-| 0 – 1,55 s | A pessoa clica (ou toca, ou aperta Enter/Espaço): o ponto treme, pulsa cada vez mais rápido, solta raios e implode. |
-| 1,55 s | **Big Bang**: clarão, ondas de choque, plasma roxo, nuvens de gás, protogaláxias, estrelas novas e rochas passando pela câmera. |
-| 2,45 – 3,4 s | A câmera voa até uma estrela roxa que se acende no meio da explosão. |
-| 3,4 – 4,2 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), atravessa um braço da galáxia por dentro, no meio das estrelas. |
-| 4,2 – 5,0 s | Ela voa até um pontinho brilhante num braço da galáxia (o sistema solar, 400 vezes menor que ela); a câmera recua até ver a galáxia inteira. |
-| 5,0 – 6,3 s | **Lupa**: tudo é ampliado em volta do pontinho. As estrelas do braço se espalham e somem, e o pontinho vira o sistema solar inteiro. |
-| 6,3 – 8,4 s | Visto de longe, com os oito planetas girando no próprio eixo e em volta do sol: a estrela começa em Netuno e vai para Vênus e Júpiter, sempre em curvas abertas (estilingue gravitacional em cada planeta). |
-| 8,4 – 9,9 s | De Júpiter a Mercúrio a câmera desce até a estrela e a segue girando em volta da direção dela, em espiral. |
-| 9,9 – 13,15 s | A estrela voa para Saturno e dá uma volta completa (360°) em volta dele, mais aberta do outro lado; a câmera dá a volta inteira junto. Depois a estrela para ao lado de Saturno. |
-| 13,15 – 15 s | A estrela treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
+| 0 – 2,25 s | A pessoa clica (ou toca, ou aperta Enter/Espaço): o ponto treme, pulsa cada vez mais rápido, solta raios e implode. |
+| 2,25 s | **Big Bang**: clarão, ondas de choque, plasma roxo, nuvens de gás, protogaláxias, estrelas novas e rochas passando pela câmera. |
+| 2,25 – 4,45 s | A câmera, parada, assiste à explosão enquanto uma estrela roxa se acende no meio dela. |
+| 4,45 – 7,25 s | A câmera primeiro vira devagar para a estrela e depois vai, sem pressa, até ficar atrás dela. |
+| 7,25 – 10,6 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), sai do repouso e desce até a galáxia, que aparece inteira, vista de cima. |
+| 10,6 – 13,1 s | Ela entra pela ponta de um braço e vai por dentro dele, no meio das estrelas, atravessando uma **nebulosa** colorida. |
+| 13,1 – 15,3 s | Seguindo a espiral do braço ela chega ao núcleo e dá meia-volta em torno de um **buraco negro** com disco de acreção. |
+| 15,3 – 16,0 s | Ela sai pela tangente, reto para um pontinho brilhante noutro braço (o sistema solar, 400 vezes menor que ela); a câmera recua até ver a galáxia inteira. |
+| 16,0 – 17,8 s | **Lupa**: tudo é ampliado em volta do pontinho. As estrelas do braço se espalham e somem, e o pontinho vira o sistema solar inteiro. |
+| 17,8 – 20,6 s | Visto de longe, com os oito planetas girando no próprio eixo e em volta do sol: a estrela começa em Netuno e vai para Vênus e Júpiter, sempre em curvas abertas (estilingue gravitacional em cada planeta). |
+| 20,6 – 22,4 s | De Júpiter a Mercúrio a câmera desce até a estrela e a segue girando em volta da direção dela, em espiral. |
+| 22,4 – 26,75 s | A estrela voa para Saturno e dá uma volta completa (360°) em volta dele, mais aberta do outro lado; a câmera dá a volta inteira junto. Depois a estrela para ao lado de Saturno. |
+| 26,75 – 29 s | A estrela treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
 
 ## Colocando conteúdo depois da animação
 
@@ -80,10 +83,10 @@ npm run dev
 | `src/main.js` | Linha do tempo (durações), posições dos objetos, câmera e clarões. |
 | `src/singularidade.js` | O ponto pulsante e a sobrecarga. |
 | `src/explosao.js` | A explosão (usada no Big Bang e na explosão final da estrela). |
-| `src/universo.js` | Céu, galáxia e Saturno. |
+| `src/universo.js` | Céu, galáxia (com a nebulosa e o buraco negro do núcleo) e Saturno. |
 | `src/sistema.js` | O sistema solar: sol, os planetas (tamanho, órbita, cores, rotação) e as linhas das órbitas. |
 | `src/estrela.js` | A estrela, os malabares e os rastros. |
-| `src/viagem.js` | O caminho da estrela (braço, lupa, Netuno → Vênus → Júpiter → Mercúrio, volta em Saturno), a velocidade em cada trecho e as câmeras. |
+| `src/viagem.js` | O caminho da estrela (braço da galáxia, nebulosa, buraco negro, lupa, Netuno → Vênus → Júpiter → Mercúrio, volta em Saturno), a velocidade em cada trecho e as câmeras. |
 | `src/texturas.js` | Texturas desenhadas na hora (não há imagens). |
 
 As durações ficam no topo de `src/main.js` (`CARGA`, `VIAGEM_DUR`, …) e as cores de cada parte no próprio arquivo dela.

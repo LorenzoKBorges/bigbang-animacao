@@ -30,28 +30,26 @@ import {
 // ------------------------------------------------------------------
 // Linha do tempo (segundos contados a partir do clique)
 // ------------------------------------------------------------------
-// Total: 15 segundos do clique até a tela branca.
-const CARGA = 1.3; // sobrecarga: treme, pulsa cada vez mais rápido
-const BANG = CARGA + 0.25; // implosão rápida e... BUM (1,55 s)
-const FOCO_INI = BANG + 0.9; // a câmera voa até a estrela
-const FOCO_FIM = BANG + 1.85;
-// a viagem (3,4 s): braço da galáxia, lupa até o sistema solar, estilingues e volta em Saturno
+// Total: ~29 segundos do clique até a tela branca.
+const CARGA = 2.0; // sobrecarga: treme, pulsa cada vez mais rápido
+const BANG = CARGA + 0.25; // implosão rápida e... BUM (2,25 s)
+const FOCO_INI = BANG + 2.2; // a câmera, parada, assiste à explosão; depois vira para a estrela...
+const FOCO_FIM = BANG + 5.0; // ...e vai devagar até ficar atrás dela (7,25 s)
+// a viagem: galáxia (braço com nebulosa, buraco negro), lupa, sistema solar e volta em Saturno
 const VIAGEM_INI = FOCO_FIM;
-const VIAGEM_DUR = 9.75;
-const FINAL_INI = VIAGEM_INI + VIAGEM_DUR; // a estrela para ao lado de Saturno e treme (13,15 s)
-const SUPERNOVA = FINAL_INI + 1.05; // ela explode
-const BRANCO = SUPERNOVA + 0.8; // tela 100% branca (15 s)
+const VIAGEM_DUR = 19.5;
+const FINAL_INI = VIAGEM_INI + VIAGEM_DUR; // a estrela para ao lado de Saturno e treme (26,75 s)
+const SUPERNOVA = FINAL_INI + 1.3; // ela explode
+const BRANCO = SUPERNOVA + 0.9; // tela 100% branca (~29 s)
 
 // Batida do coração e fluxo de energia (a frequência sobe durante a carga)
 const BATIDA_0 = 0.85;
-const BATIDA_1 = 9;
+const BATIDA_1 = 8;
 const FLUXO_0 = 0.12;
 const FLUXO_1 = 0.95;
 
-// Onde a estrela protagonista "nasce" e onde ela cruza um braço da galáxia
-// (a 72 unidades do núcleo). A galáxia é posicionada a partir disso.
+// Onde a estrela protagonista "nasce" (a galáxia é posicionada a partir daqui)
 const H0 = new THREE.Vector3(25, 5, -20);
-const BRACO = { indice: 0, raio: 72, tempo: VIAGEM_INI + 0.7 };
 
 const parametros = new URLSearchParams(location.search);
 const reduzirMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -140,7 +138,7 @@ function iniciar() {
   const ceu = new Ceu(cena, tex, q);
   const galaxia = new Galaxia(cena, tex, q, new THREE.Vector3());
   // a rota posiciona a galáxia e escolhe o pontinho do braço onde está o sistema solar
-  const rota = planejarRota(galaxia, H0, BRACO);
+  const rota = planejarRota(galaxia, H0);
   const sistema = new SistemaSolar(cena, tex, rota.base);
   const planeta = new Planeta(cena, tex, q, rota.saturno);
   sistema.adotarSaturno(planeta, rota.grausSaturno);
@@ -153,8 +151,7 @@ function iniciar() {
   );
   // os planetas que a estrela não visita ficam longe do caminho dela
   sistema.afastarDaRota((x, out) => viagem.estrelaEm(x - VIAGEM_INI, out), VIAGEM_INI + viagem.tempoDe(viagem.sLupaFim), FINAL_INI);
-  // quando a estrela começa a ir até o pontinho do braço e quando a lupa começa
-  const tAproximacao = VIAGEM_INI + viagem.tempoDe(viagem.sBracoFim);
+  // quando a lupa começa e termina
   const tLupa = VIAGEM_INI + viagem.tempoDe(viagem.sLupaIni);
   const tLupaFim = VIAGEM_INI + viagem.tempoDe(viagem.sLupaFim);
   const ampliacao = (x) => (x < VIAGEM_INI ? viagem.sigma0 : viagem.ampliacao(Math.min(x, FINAL_INI) - VIAGEM_INI));
@@ -266,6 +263,11 @@ function iniciar() {
   const vTmp2 = new THREE.Vector3();
   const vTmp3 = new THREE.Vector3();
   const vTremor = new THREE.Vector3();
+  const vDeriva = new THREE.Vector3();
+  // curva bem suave (começa e termina sem tranco nenhum)
+  const suave = (x) => x * x * x * (x * (x * 6 - 15) + 10);
+  // balanço leve da câmera depois da explosão, que vai sumindo
+  const balanco = (te) => Math.sin(te * 1.2) * 0.06 * Math.exp(-te * 0.5);
   const estrelaPos = new THREE.Vector3();
   const CAM_OCIOSA = new THREE.Vector3(0, 0, 30);
   const CAM_CARGA = new THREE.Vector3(0, 0, 23);
@@ -280,8 +282,8 @@ function iniciar() {
   const ladoFinal = camViagem1.pos.clone().sub(fimViagem).normalize();
 
   function posCameraExplosao(te, out) {
-    const k = easeOutCubic(clamp(te / (FOCO_INI - BANG)));
-    return out.lerpVectors(CAM_CARGA, CAM_EXPLOSAO, k);
+    const k = easeOutCubic(clamp(te / 2.0));
+    return out.lerpVectors(CAM_CARGA, CAM_EXPLOSAO, k).add(vDeriva.set(Math.sin(te * 0.35) * 2.5, Math.sin(te * 0.27) * 1.5, 0));
   }
 
   function dirigirCamera(t, carga) {
@@ -297,27 +299,30 @@ function iniciar() {
       camAlvo.set(0, 0, 0);
       tremorAmp = 0.32 * carga * carga;
     } else if (t < FOCO_INI) {
+      // a câmera recua com a explosão e fica quase parada, assistindo
       const te = t - BANG;
       posCameraExplosao(te, camPos);
       camAlvo.set(0, 0, 0);
       tremorAmp = 1.6 * Math.exp(-te * 2.5);
-      camCima.set(Math.sin(te * 1.5) * 0.08, 1, 0).normalize();
+      camCima.set(balanco(te), 1, 0).normalize();
     } else if (t < FOCO_FIM) {
-      // voo curvo até ficar atrás da estrela
-      const f = easeInOutCubic(progresso(FOCO_INI, FOCO_FIM, t));
+      // transição leve: primeiro só vira para olhar a estrela; depois sai atrás dela,
+      // começando bem devagar e chegando sem tranco (curva suave nas duas pontas)
+      const f = progresso(FOCO_INI, FOCO_FIM, t);
+      const virar = suave(progresso(0, 0.45, f));
+      const ir = suave(progresso(0.22, 1, f));
       const p0 = posCameraExplosao(FOCO_INI - BANG, vTmp);
       const p1 = camViagem0.pos;
-      const ctrl = vTmp2.lerpVectors(p0, p1, 0.5).add(vTmp3.set(35, 12, 5));
+      const ctrl = vTmp2.lerpVectors(p0, p1, 0.5).add(vTmp3.set(30, 25, 0));
       camPos
         .copy(p0)
-        .multiplyScalar((1 - f) * (1 - f))
-        .addScaledVector(ctrl, 2 * f * (1 - f))
-        .addScaledVector(p1, f * f);
+        .multiplyScalar((1 - ir) * (1 - ir))
+        .addScaledVector(ctrl, 2 * ir * (1 - ir))
+        .addScaledVector(p1, ir * ir);
       posEstrela(t, estrelaPos);
-      const fa = smoothstep(0, 0.45, progresso(FOCO_INI, FOCO_FIM, t));
-      camAlvo.set(0, 0, 0).lerp(estrelaPos, fa).lerp(camViagem0.alvo, f);
-      camCima.set(Math.sin((FOCO_INI - BANG) * 1.5) * 0.08, 1, 0).lerp(camViagem0.cima, f).normalize();
-      fov = lerp(60, camViagem0.fov, f);
+      camAlvo.set(0, 0, 0).lerp(estrelaPos, virar).lerp(camViagem0.alvo, ir);
+      camCima.set(balanco(FOCO_INI - BANG), 1, 0).lerp(camViagem0.cima, ir).normalize();
+      fov = lerp(60, camViagem0.fov, ir);
     } else if (t < FINAL_INI) {
       fov = viagem.camera(t - VIAGEM_INI, camPos, camAlvo, camCima);
     } else {
@@ -386,7 +391,7 @@ function iniciar() {
     // --- Big Bang
     bigbang.atualizar(estado === 'ocioso' ? -1 : t - BANG);
     // os restos da explosão somem enquanto a estrela voa até o pontinho do braço
-    const restos = 1 - smoothstep(tAproximacao, tLupa, t);
+    const restos = 1 - smoothstep(FOCO_FIM - 1.5, VIAGEM_INI + 2.5, t);
     bigbang.opacidade = lerp(1, 0.6, smoothstep(FOCO_INI, FOCO_FIM, t)) * restos;
     if (restos < 0.01) bigbang.grupo.visible = false;
 
@@ -401,7 +406,7 @@ function iniciar() {
     const dest = t > VIAGEM_INI - 0.5 && t < SUPERNOVA ? viagem.destaques(estrelaPos) : zero;
     // (o relógio da galáxia é o tempo desde o clique: assim o braço está onde a rota espera;
     //  ela para de girar quando a lupa começa, senão o pontinho sairia de baixo do sistema solar)
-    galaxia.atualizar(Math.min(t, tLupa), dest.galaxia ?? 0, estrelaPos, formacao);
+    galaxia.atualizar(t, dest.galaxia ?? 0, estrelaPos, formacao);
     planeta.atualizar(t, dest.planeta ?? 0, estrelaPos, formacao);
     sistema.atualizar(t, estrelaPos, formacao);
     poeira.atualizar(estado === 'ocioso' ? 0 : smoothstep(BANG + 0.8, BANG + 2.4, t) * (1 - smoothstep(SUPERNOVA, SUPERNOVA + 0.4, t)));
@@ -411,7 +416,7 @@ function iniciar() {
     const te = t - BANG;
     const kFinal = progresso(FINAL_INI + 0.1, SUPERNOVA - 0.25, t);
     const contrai = easeInCubic(progresso(SUPERNOVA - 0.25, SUPERNOVA, t));
-    const acende = janela(te, 0.55, 0.85, 1.3, 2.0);
+    const acende = janela(te, 1.3, 1.9, 2.5, 3.8); // a estrela se acende enquanto a câmera está parada
     const piscada = kFinal > 0.3 ? 1 + (Math.random() - 0.5) * 0.7 * kFinal : 1;
     estrela.atualizar(t, posEstrela, {
       visivel: viva,

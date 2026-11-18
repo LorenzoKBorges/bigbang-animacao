@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { materialPontos, geometria, pontos, sprite, longeDaCamera } from './materiais.js';
+import { materialPontos, geometria, pontos, sprite, longeDaCamera, globais } from './materiais.js';
 import { criarRng, gauss, naEsfera, smoothstep, lerp } from './utils.js';
 
 // O universo depois do Big Bang: céu, a galáxia e Saturno.
@@ -73,18 +73,154 @@ export class Ceu {
   }
 }
 
-/** Galáxia espiral com três braços, girando (mais rápido no centro). */
+/** Ângulo (rad) do centro do braço `braco` a uma distância `r` do núcleo (espiral logarítmica). */
+function anguloDoBraco(braco, r) {
+  return (braco * Math.PI * 2) / 3 + Math.log(r / 6) * 1.9;
+}
+
+/** Nebulosa colorida num braço da galáxia: nuvens de gás e estrelas jovens. Acende quando a estrela passa. */
+class NebulosaGalactica {
+  constructor(pai, tex, q, local) {
+    this.grupo = new THREE.Group();
+    this.grupo.position.copy(local);
+    pai.add(this.grupo);
+    const rand = criarRng(212);
+    const cores = ['#ff4fd8', '#c026d3', '#a855f7', '#7c3aed', '#f472b6', '#22d3ee', '#e879f9'];
+    this.puffs = [];
+    for (let i = 0; i < 30; i++) {
+      const s = sprite(tex.nuvens[i % tex.nuvens.length], cores[i % cores.length], 18 + rand() * 26, 0);
+      s.position.set(gauss(rand) * 15, gauss(rand) * 4, gauss(rand) * 15);
+      s.material.rotation = rand() * Math.PI * 2;
+      s.userData = { op: 0.09 + rand() * 0.11, giro: (rand() - 0.5) * 0.08, rot0: s.material.rotation };
+      this.grupo.add(s);
+      this.puffs.push(s);
+    }
+    const n = Math.round(320 * Math.max(0.5, q));
+    const pos = new Float32Array(n * 3);
+    const sem = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      pos.set([gauss(rand) * 14, gauss(rand) * 4, gauss(rand) * 14], i * 3);
+      sem[i] = rand();
+    }
+    this.u = { uOpac: { value: 0 }, uT: { value: 0 }, uDestaque: { value: 0 } };
+    this.grupo.add(
+      pontos(
+        geometria({ position: [pos, 3], aSem: [sem, 1] }, n),
+        materialPontos({
+          uniforms: this.u,
+          perto: 4,
+          cabecalho: 'attribute float aSem; uniform float uOpac; uniform float uT; uniform float uDestaque;',
+          corpo: /* glsl */ `
+            pos = position;
+            cor = mix(vec3(0.82, 0.9, 1.0), vec3(1.0, 0.78, 0.98), aSem) * (1.3 + uDestaque * 0.9);
+            tam = 0.35 + aSem * 0.6;
+            alfa = uOpac * (0.65 + 0.35 * sin(uT * 3.0 + aSem * 40.0));
+          `,
+        })
+      )
+    );
+    this._v = new THREE.Vector3();
+    this._w = new THREE.Vector3();
+  }
+
+  atualizar(t, opac, estrela) {
+    this.grupo.visible = opac > 0.001;
+    if (!this.grupo.visible) return;
+    const centro = this.grupo.getWorldPosition(this._v);
+    const perto = smoothstep(70, 8, centro.distanceTo(estrela));
+    // com a câmera dentro do gás, cada nuvem fica bem mais fraca (senão a tela estoura de rosa)
+    const dentro = smoothstep(45, 12, centro.distanceTo(globais.camPos));
+    this.u.uOpac.value = opac;
+    this.u.uT.value = t;
+    this.u.uDestaque.value = perto;
+    for (const s of this.puffs) {
+      const d = s.userData;
+      const longe = smoothstep(s.scale.x * 0.3, s.scale.x * 1.3, s.getWorldPosition(this._w).distanceTo(globais.camPos));
+      s.material.opacity = d.op * opac * (1 + perto * 0.5) * (1 - 0.55 * dentro) * longe;
+      s.material.rotation = d.rot0 + t * d.giro;
+    }
+  }
+}
+
+/** Buraco negro supermassivo no núcleo da galáxia, com disco de acreção girando. */
+class BuracoNegroGalactico {
+  constructor(pai, tex, q) {
+    this.grupo = new THREE.Group();
+    this.grupo.rotation.set(0.45, 0, 0.2); // disco inclinado em relação ao disco da galáxia
+    pai.add(this.grupo);
+    this.horizonte = new THREE.Mesh(new THREE.SphereGeometry(5, 40, 28), new THREE.MeshBasicMaterial({ color: '#000000' }));
+    this.grupo.add(this.horizonte);
+    const rand = criarRng(616);
+    const n = Math.round(14000 * q);
+    const aR = new Float32Array(n);
+    const aAng = new Float32Array(n);
+    const aY = new Float32Array(n);
+    const aTam = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      aR[i] = 7 + 26 * Math.pow(rand(), 1.6);
+      aAng[i] = rand() * Math.PI * 2;
+      aY[i] = gauss(rand) * 0.2 * (aR[i] / 12);
+      aTam[i] = 0.14 + rand() * 0.28;
+    }
+    this.u = { uOpac: { value: 0 }, uT: { value: 0 }, uDestaque: { value: 0 } };
+    this.grupo.add(
+      pontos(
+        geometria({ aR: [aR, 1], aAng: [aAng, 1], aY: [aY, 1], aTam: [aTam, 1] }, n),
+        materialPontos({
+          uniforms: this.u,
+          perto: 5,
+          cabecalho: /* glsl */ `
+            attribute float aR; attribute float aAng; attribute float aY; attribute float aTam;
+            uniform float uOpac; uniform float uT; uniform float uDestaque;
+          `,
+          corpo: /* glsl */ `
+            float ang = aAng + uT * 16.0 / pow(aR, 1.5);
+            pos = vec3(cos(ang) * aR, aY, sin(ang) * aR);
+            float quente = 1.0 - smoothstep(7.0, 33.0, aR);
+            cor = mix(vec3(0.42, 0.16, 0.85), vec3(0.95, 0.35, 0.85), smoothstep(0.2, 0.6, quente));
+            cor = mix(cor, vec3(1.0, 0.94, 1.0), smoothstep(0.75, 1.0, quente));
+            cor *= (0.6 + 1.6 * quente) * (1.0 + uDestaque * 0.6);
+            tam = aTam;
+            alfa = uOpac;
+          `,
+        })
+      )
+    );
+    this.anelFoton = sprite(tex.anel, '#f5d0fe', 12, 0);
+    this.brilho = sprite(tex.brilho, '#c026d3', 70, 0);
+    this.grupo.add(this.brilho, this.anelFoton);
+    this._v = new THREE.Vector3();
+  }
+
+  atualizar(t, opac, estrela, ampliada) {
+    // na lupa a esfera preta (opaca) não pode ficar no caminho: some logo
+    this.grupo.visible = opac > 0.001 && ampliada < 3;
+    if (!this.grupo.visible) return;
+    const perto = smoothstep(80, 15, this.grupo.getWorldPosition(this._v).distanceTo(estrela));
+    this.u.uOpac.value = opac;
+    this.u.uT.value = t;
+    this.u.uDestaque.value = perto;
+    this.anelFoton.material.opacity = (0.55 + perto * 0.3) * opac;
+    this.brilho.material.opacity = (0.16 + perto * 0.12) * opac * longeDaCamera(this.brilho);
+  }
+}
+
+/**
+ * Galáxia espiral com três braços, um buraco negro no núcleo e uma nebulosa num dos braços.
+ * (Ela não gira: em poucos segundos não daria para notar, e assim os braços ficam onde a rota espera.)
+ */
 export class Galaxia {
   constructor(cena, tex, q, centro) {
+    this.tex = tex;
+    this.q = q;
     this.centro = centro.clone();
     this.raio = 130;
     this.grupo = new THREE.Group();
     this.grupo.position.copy(centro);
-    this.grupo.rotation.set(0.32, 0.4, -0.2);
     cena.add(this.grupo);
     const R = 115;
     const rand = criarRng(303);
-    const n = Math.round(32000 * q);
+    const n = Math.round(40000 * q);
     const aR = new Float32Array(n);
     const aAng = new Float32Array(n);
     const aY = new Float32Array(n);
@@ -101,15 +237,16 @@ export class Galaxia {
       let a;
       let y;
       let tam = 0.3 + rand() * 0.45;
-      if (rand() < 0.2) {
-        r = Math.abs(gauss(rand)) * 13;
+      if (rand() < 0.18) {
+        // bojo central (com um vazio no meio, onde fica o buraco negro)
+        r = 8 + Math.abs(gauss(rand)) * 12;
         a = rand() * Math.PI * 2;
         y = gauss(rand) * 6 * Math.exp(-r / 14);
         c.copy(cNucleo).lerp(cDentro, rand() * 0.4);
       } else {
         const braco = Math.floor(rand() * 3);
-        r = R * (0.06 + 0.94 * Math.pow(rand(), 0.8));
-        a = (braco * Math.PI * 2) / 3 + Math.log(r / 6) * 1.9 + gauss(rand) * 0.3 * (1 - (r / R) * 0.3);
+        r = R * (0.08 + 0.92 * Math.pow(rand(), 0.8));
+        a = anguloDoBraco(braco, r) + gauss(rand) * 0.3 * (1 - (r / R) * 0.3);
         y = gauss(rand) * 1.6 * (1 - (r / R) * 0.5);
         c.copy(cDentro).lerp(cFora, Math.min(1, r / R + rand() * 0.2));
         if (rand() < 0.06) {
@@ -138,53 +275,64 @@ export class Galaxia {
           uniform float uOpac; uniform float uT; uniform float uDestaque; uniform float uTamMul;
         `,
         corpo: /* glsl */ `
-          float w = 1.0 / (0.35 + aR / 22.0);
-          float ang = aAng - uT * w * 0.1;
-          pos = vec3(cos(ang) * aR, aY, sin(ang) * aR);
-          cor = aCor * (0.8 + uDestaque * 0.45) * (1.0 + 0.5 * smoothstep(2.0, 20.0, uTamMul));
-          tam = aTam * (1.0 + uDestaque * 0.25) * uTamMul;
+          pos = vec3(cos(aAng) * aR, aY, sin(aAng) * aR);
+          cor = aCor * (1.0 + uDestaque * 0.35) * (1.0 + 0.5 * smoothstep(2.0, 20.0, uTamMul));
+          tam = aTam * (1.0 + uDestaque * 0.2) * uTamMul;
           alfa = uOpac * (0.85 + 0.15 * sin(uT * 2.0 + aSem * 50.0));
         `,
       })
     );
     this.grupo.add(this.disco);
-    this.nucleo = sprite(tex.brilho, '#f0c8ff', 70, 0);
+    this.nucleo = sprite(tex.brilho, '#f0c8ff', 50, 0);
     this.halo = sprite(tex.brilho, '#8b4dff', 320, 0);
     this.grupo.add(this.halo, this.nucleo);
+    this.buraco = new BuracoNegroGalactico(this.grupo, tex, q);
+    this.nebulosa = null;
   }
 
-  /** Muda a galáxia de lugar. */
-  moverPara(centro) {
+  /** Coloca a galáxia num lugar, com uma orientação (quaternion). */
+  posicionar(centro, quaternion) {
     this.centro.copy(centro);
     this.grupo.position.copy(centro);
+    this.grupo.quaternion.copy(quaternion);
     this.grupo.updateMatrixWorld();
+  }
+
+  /** Cria a nebulosa no braço `braco`, a uma distância `r` do núcleo. */
+  criarNebulosa(braco, r) {
+    this.nebulosa = new NebulosaGalactica(this.grupo, this.tex, this.q, Galaxia.localDoBraco(braco, r).setY(2));
   }
 
   /**
    * A "lupa": amplia a galáxia `fator` vezes em volta do ponto `pivo` (onde está o sistema solar).
-   * As estrelas se espalham e crescem um pouco, até virarem a faixa de fundo do sistema solar.
+   * As estrelas se espalham e crescem um pouco; depois a galáxia some e o sistema solar fica limpo.
    */
   ampliar(pivo, fator, distanciaCamera = 0) {
     this.ampliada = fator;
-    // depois que a lupa passa pela galáxia ela some: o sistema solar fica limpo, sem estrelas na frente
     this.someNaLupa = 1 - smoothstep(12, 70, fator);
-    // ampliada, a galáxia vira o fundo: as estrelas entre a câmera e o sistema solar somem
-    // (ficaria uma chuva de bolhas na frente dos planetas)
+    // ampliada, as estrelas entre a câmera e o sistema solar somem (seriam bolhas na frente dos planetas)
     this.disco.material.uniforms.uPerto.value = lerp(7, distanciaCamera * 1.15, smoothstep(2, 6, fator));
     this.grupo.position.copy(this.centro).sub(pivo).multiplyScalar(fator).add(pivo);
     this.grupo.scale.setScalar(fator);
     this.u.uTamMul.value = Math.pow(fator, 0.95);
   }
 
-  /**
-   * Centro do braço `braco` (0, 1 ou 2) a uma distância `r` do núcleo, no instante `tempo`
-   * (a galáxia gira devagar), em coordenadas do mundo. Mesma fórmula usada para espalhar as estrelas.
-   */
-  pontoDoBraco(braco, r, tempo, out = new THREE.Vector3()) {
-    const w = 1 / (0.35 + r / 22);
-    const a = (braco * Math.PI * 2) / 3 + Math.log(r / 6) * 1.9 - tempo * w * 0.1;
+  /** Centro do braço em coordenadas da galáxia (plano do disco: y = 0). */
+  static localDoBraco(braco, r, out = new THREE.Vector3()) {
+    const a = anguloDoBraco(braco, r);
+    return out.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+  }
+
+  /** Centro do braço `braco` (0, 1 ou 2) a uma distância `r` do núcleo, no mundo. */
+  pontoDoBraco(braco, r, out = new THREE.Vector3()) {
     this.grupo.updateMatrixWorld();
-    return out.set(Math.cos(a) * r, 0, Math.sin(a) * r).applyMatrix4(this.grupo.matrixWorld);
+    return Galaxia.localDoBraco(braco, r, out).applyMatrix4(this.grupo.matrixWorld);
+  }
+
+  /** Ponto em coordenadas da galáxia -> mundo. */
+  mundo(local, out = new THREE.Vector3()) {
+    this.grupo.updateMatrixWorld();
+    return out.copy(local).applyMatrix4(this.grupo.matrixWorld);
   }
 
   get normal() {
@@ -192,14 +340,17 @@ export class Galaxia {
   }
 
   atualizar(t, destaque, estrela, formacao) {
-    this.grupo.visible = formacao * this.someNaLupa > 0.001;
-    this.u.uOpac.value = formacao * this.someNaLupa;
+    const opac = formacao * this.someNaLupa;
+    this.grupo.visible = opac > 0.001;
+    this.u.uOpac.value = opac;
     this.u.uT.value = t;
     this.u.uDestaque.value = destaque;
     // ampliada, o brilho do núcleo cobriria tudo: some aos poucos
     const ampliacao = smoothstep(6, 1.5, this.ampliada);
-    this.nucleo.material.opacity = (0.6 + destaque * 0.25) * formacao * longeDaCamera(this.nucleo) * ampliacao;
+    this.nucleo.material.opacity = (0.4 + destaque * 0.2) * formacao * longeDaCamera(this.nucleo) * ampliacao;
     this.halo.material.opacity = (0.1 + destaque * 0.05) * formacao * longeDaCamera(this.halo) * ampliacao;
+    this.buraco.atualizar(t, opac, estrela, this.ampliada);
+    if (this.nebulosa) this.nebulosa.atualizar(t, opac, estrela);
   }
 }
 

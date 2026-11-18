@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { smoothstep, clamp, lerp } from './utils.js';
 import { PLANETAS, ORBITA_SATURNO, SistemaSolar } from './sistema.js';
+import { Galaxia } from './universo.js';
 
 const M = 6000; // amostras ao longo do caminho
 const SUAVIZAR = 35; // a câmera de perseguição segue a direção média de ±35 de caminho
@@ -19,7 +20,15 @@ const RAIO_CAMERA = 74; // a câmera acompanha por fora, um pouco acima do plano
 const ATRASO_CAMERA = 0.6; // ...sempre ~35° atrás da estrela
 const EXTRA_ORBITA = THREE.MathUtils.degToRad(30); // a estrela dá 360° + 30° e sai pela tangente
 const GIRO_CAMERA_SATURNO = Math.PI * 2 + EXTRA_ORBITA; // a câmera dá a volta inteira junto com ela
-const DIRECAO_DO_BRACO = new THREE.Vector3(-0.25, 0, -1); // a estrela atravessa o braço indo "para dentro" da cena
+// Galáxia, em coordenadas dela (disco no plano y = 0, núcleo na origem)
+const INCLINACAO_GALAXIA = THREE.MathUtils.degToRad(25); // disco inclinado para a câmera da explosão
+const BRACO_DA_ROTA = { braco: 2, de: 110, ate: 40 }; // a estrela entra pela ponta deste braço e vai por dentro dele até perto do núcleo
+const RAIO_NEBULOSA = 76; // no caminho, dentro do braço, ela atravessa uma nebulosa
+const PARTIDA_ATRAS = 120; // a estrela começa fora do disco, na continuação do braço...
+const PARTIDA_ALTURA = 90; // ...e acima dele (desce vendo a galáxia de cima)
+const RAIO_BURACO = 32; // a volta no buraco negro do núcleo (o disco de acreção vai até 33, inclinado)
+const ALTURA_BURACO = 6;
+const RETA_ATE_PONTINHO = 60; // depois do buraco negro ela voa reto e começa a frear a esta distância do pontinho
 // De Júpiter a Mercúrio a câmera desce e segue a estrela girando em volta da direção dela (espiral)
 const VOLTAS_ESPIRAL = 1;
 const ESPIRAL_RAIO = 8;
@@ -95,52 +104,111 @@ function estilingue(P, entra, sai, rp) {
 }
 
 /**
- * Planeja a rota antes de criar o sistema solar: posiciona a galáxia para a estrela entrar de
- * frente num braço, escolhe o pontinho do braço que a lupa vai ampliar (onde fica o sol) e
- * define a orientação do sistema, a câmera e por onde a estrela passa.
- *
- * @param braco  { indice, raio, tempo }: o braço, a distância do núcleo onde a estrela o cruza
- *               e o instante aproximado da passagem (a galáxia gira devagar)
+ * Planeja a rota antes de criar o sistema solar: posiciona e inclina a galáxia (com a nebulosa e o
+ * buraco negro), escolhe o pontinho do braço que a lupa vai ampliar (onde fica o sol) e define a
+ * orientação do sistema, a câmera e por onde a estrela passa.
  */
-export function planejarRota(galaxia, inicio, braco) {
-  const { indice, raio, tempo } = braco;
-  const MEIA_TRAVESSIA = 45; // a estrela fica ~90 unidades dentro do braço
+/**
+ * Planeja a rota antes de criar o sistema solar: posiciona e inclina a galáxia (com a nebulosa e o
+ * buraco negro), escolhe o pontinho do braço que a lupa vai ampliar (onde fica o sol) e define a
+ * orientação do sistema, a câmera e por onde a estrela passa.
+ */
+/**
+ * Curva aberta saindo de `inicio` na direção `rumo` até apontar para `alvo` (vira no máximo
+ * 0,82° por unidade, raio ~70). Devolve null se a estrela precisaria dar a volta no alvo, se
+ * sobraria pouca reta até ele, ou se a curva passaria perto do núcleo.
+ */
+function curvaAte(inicio, rumo0, alvo, nucleo) {
+  const PASSO = 2;
+  const GIRO_MAX = THREE.MathUtils.degToRad(0.82) * PASSO;
+  const p = inicio.clone();
+  const rumo = rumo0.clone();
+  const pontos = [];
+  let giro = 0;
+  let distAnterior = Infinity;
+  let aproximando = false;
+  for (let k = 0; k < 300; k++) {
+    const para = alvo.clone().sub(p);
+    const dist = para.length();
+    const ang = rumo.angleTo(para.normalize());
+    if (ang < 0.01) {
+      if (dist < 55) return null;
+      return { pontos, fim: p, giro: THREE.MathUtils.radToDeg(giro), comprimento: k * PASSO };
+    }
+    // afastando do alvo depois de já ter começado a chegar: está dando a volta nele
+    if (dist < distAnterior) aproximando = true;
+    else if (aproximando) return null;
+    distAnterior = dist;
+    if (p.distanceTo(nucleo) < 45) return null;
+    const eixo = new THREE.Vector3().crossVectors(rumo, para).normalize();
+    const d = Math.min(GIRO_MAX, ang);
+    rumo.applyAxisAngle(eixo, d);
+    giro += d;
+    p.addScaledVector(rumo, PASSO);
+    if (k % 6 === 5) pontos.push(p.clone());
+  }
+  return null;
+}
 
-  // 1) gira a galáxia (em volta do eixo vertical) para o braço apontar para dentro da cena,
-  //    e a coloca de modo que o braço comece 70 unidades à frente do ponto inicial
-  galaxia.moverPara(new THREE.Vector3());
-  const direcaoDoBraco = () => {
-    const a = galaxia.pontoDoBraco(indice, raio, tempo);
-    return galaxia.pontoDoBraco(indice, raio - 1, tempo).sub(a).normalize();
-  };
-  const atual = direcaoDoBraco();
-  const ajuste = Math.atan2(DIRECAO_DO_BRACO.x, DIRECAO_DO_BRACO.z) - Math.atan2(atual.x, atual.z);
-  galaxia.grupo.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ajuste));
-  galaxia.grupo.updateMatrixWorld();
-  const meio0 = galaxia.pontoDoBraco(indice, raio, tempo);
-  const dirBraco = direcaoDoBraco();
-  galaxia.moverPara(inicio.clone().addScaledVector(dirBraco, 70 + MEIA_TRAVESSIA).sub(meio0));
+export function planejarRota(galaxia, inicio) {
+  const { braco, de, ate } = BRACO_DA_ROTA;
+
+  // 1) orientação da galáxia: disco inclinado para a câmera da explosão (que o vê de cima). A
+  //    estrela começa acima do disco, na continuação do braço, e desce até a ponta dele; a galáxia
+  //    gira em volta da normal para essa descida ir para longe da câmera
+  const entradaLocal = Galaxia.localDoBraco(braco, de).setY(3);
+  const tangente = Galaxia.localDoBraco(braco, de - 1).sub(entradaLocal).setY(0).normalize(); // para dentro
+  const partida = entradaLocal.clone().addScaledVector(tangente, -PARTIDA_ATRAS).setY(PARTIDA_ALTURA);
+  const normal = new THREE.Vector3(0, Math.cos(INCLINACAO_GALAXIA), Math.sin(INCLINACAO_GALAXIA));
+  let q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+  for (let k = 0; k < 3; k++) {
+    const d = entradaLocal.clone().sub(partida).applyQuaternion(q);
+    const ajuste = Math.PI - Math.atan2(d.x, d.z); // queremos a direção apontando para -z
+    q = new THREE.Quaternion().setFromAxisAngle(normal, ajuste).multiply(q);
+  }
+  galaxia.posicionar(inicio.clone().sub(partida.clone().applyQuaternion(q)), q);
+  galaxia.criarNebulosa(braco, RAIO_NEBULOSA);
   const n = galaxia.normal;
+  const nebulosa = galaxia.mundo(Galaxia.localDoBraco(braco, RAIO_NEBULOSA).setY(2));
+  const buraco = galaxia.mundo(new THREE.Vector3(0, ALTURA_BURACO, 0));
 
-  // 2) atravessa o braço em linha reta, tangente a ele no meio (no plano do disco)
-  const meio = galaxia.pontoDoBraco(indice, raio, tempo);
-  const noBraco = [-1, -0.5, 0, 0.5, 1].map((f) => meio.clone().addScaledVector(dirBraco, f * MEIA_TRAVESSIA));
-  const fimBraco = noBraco[noBraco.length - 1];
+  // 2) desce até a ponta do braço e vai por dentro dele, no meio das estrelas, passando pela
+  //    nebulosa, seguindo a espiral até perto do núcleo
+  const descida = galaxia.mundo(entradaLocal.clone().addScaledVector(tangente, -45).setY(16));
+  const noBraco = [];
+  for (let r = de; r >= ate - 0.01; r -= 5) {
+    noBraco.push(galaxia.mundo(Galaxia.localDoBraco(braco, r).setY(3 + 1.5 * Math.sin(r * 0.15))));
+  }
 
-  // 3) o pontinho do braço onde está o sistema solar: o ponto de braço mais "à frente" da estrela
+  // 3) dá uma volta no buraco negro (no mesmo sentido da espiral) e sai pela tangente, reto para
+  //    o pontinho de um braço (o sistema solar). O pontinho escolhido é o que faz a volta ser
+  //    grande (~160°) e deixa espaço para a estrela frear antes dele
+  const a0 = Math.atan2(Galaxia.localDoBraco(braco, ate).z, Galaxia.localDoBraco(braco, ate).x);
+  const dr0 = (ate - RAIO_BURACO) / ate; // ...e o raio vai fechando no ritmo da espiral
   let melhor = null;
   for (let b = 0; b < 3; b++) {
-    for (let r = 15; r <= 112; r++) {
-      const p = galaxia.pontoDoBraco(b, r, tempo);
-      const d = p.clone().sub(fimBraco);
-      const dist = d.length();
-      if (dist < 70 || dist > 220) continue;
-      const nota = THREE.MathUtils.radToDeg(d.normalize().angleTo(dirBraco)) + Math.max(0, 100 - dist) * 0.3;
-      if (!melhor || nota < melhor.nota) melhor = { p, nota };
+    for (let r = 86; r <= 108; r += 2) {
+      const S = Galaxia.localDoBraco(b, r);
+      const aT = Math.atan2(S.z, S.x) + Math.acos(RAIO_BURACO / r); // onde a reta sai tangente
+      const volta = THREE.MathUtils.euclideanModulo(a0 - aT, Math.PI * 2);
+      if (volta < THREE.MathUtils.degToRad(110) || volta > THREE.MathUtils.degToRad(230)) continue;
+      const nota = Math.abs(volta - THREE.MathUtils.degToRad(160)) + Math.abs(r - 98) * 0.01;
+      if (!melhor || nota < melhor.nota) melhor = { S, r, volta, nota };
     }
   }
-  const sol = melhor.p;
-  const antesDoPontinho = fimBraco.clone().addScaledVector(dirBraco, 45);
+  const voltaBuraco = [];
+  const nVolta = Math.ceil(melhor.volta / THREE.MathUtils.degToRad(12));
+  const taxa = 1 / 1.9 / dr0; // o raio começa a fechar com a mesma inclinação da espiral
+  for (let k = 1; k <= nVolta; k++) {
+    const u = (melhor.volta * k) / nVolta;
+    const r = RAIO_BURACO + (ate - RAIO_BURACO) * Math.exp(-u * taxa);
+    voltaBuraco.push(galaxia.mundo(new THREE.Vector3(Math.cos(a0 - u) * r, ALTURA_BURACO, Math.sin(a0 - u) * r)));
+  }
+  const sol = galaxia.mundo(melhor.S);
+  const saidaBuraco = voltaBuraco[voltaBuraco.length - 1];
+  const dReta = sol.clone().sub(saidaBuraco);
+  const antesDoPontinho = sol.clone().addScaledVector(dReta.clone().normalize(), -RETA_ATE_PONTINHO);
+  const curvaSaida = [new THREE.Vector3().lerpVectors(saidaBuraco, antesDoPontinho, 0.5)];
   const dChegada = sol.clone().sub(antesDoPontinho).normalize(); // a estrela chega no pontinho nesta direção
 
   // 4) orientação do sistema: plano das órbitas inclinado em volta da direção de chegada (assim a
@@ -186,7 +254,14 @@ export function planejarRota(galaxia, inicio, braco) {
   const entrada = saturno.clone().addScaledVector(lado, -RAIO_ORBITA);
 
   return {
+    descida,
     noBraco,
+    nebulosa,
+    buraco,
+    centroGalaxia: galaxia.mundo(new THREE.Vector3()),
+    normalGalaxia: n,
+    voltaBuraco,
+    curvaSaida,
     base,
     camera,
     sigma0,
@@ -211,12 +286,16 @@ export function planejarRota(galaxia, inicio, braco) {
 export class Viagem {
   constructor({ inicio, galaxia, planeta, rota }, duracao) {
     this.duracao = duracao;
-    const { noBraco, base, antesDoPontinho, fimAproximacao, inicioSistema, encontros, entrada, dEnt, lado } = rota;
+    const { descida, noBraco, voltaBuraco, curvaSaida, base, antesDoPontinho, fimAproximacao } = rota;
+    const { inicioSistema, encontros, entrada, dEnt, lado } = rota;
     const C = planeta.centro;
     this.sol = base.sol.clone();
     this.cimaSistema = base.cima.clone();
     this.cameraSistema = rota.camera.clone();
     this.sigma0 = rota.sigma0;
+    this.centroGalaxia = rota.centroGalaxia.clone();
+    this.normalGalaxia = rota.normalGalaxia.clone();
+    this.buraco = rota.buraco.clone();
     this.distanciaLupa = inicioSistema.distanceTo(this.sol);
 
     // estilingues: cada planeta desvia a estrela, que passa por fora da curva
@@ -245,13 +324,14 @@ export class Viagem {
     const dSai = saida.clone().sub(naOrbita(total - 0.01)).normalize();
     const fim = saida.clone().addScaledVector(dSai, 28); // para logo depois da volta, ao lado de Saturno
 
-    const fimBraco = noBraco[noBraco.length - 1];
     const naLupa = (f) => this.sol.clone().lerp(inicioSistema, f);
     const pts = [
       inicio.clone(),
-      new THREE.Vector3().lerpVectors(inicio, noBraco[0], 0.5),
-      ...noBraco, // 1) por dentro do braço da galáxia
-      antesDoPontinho, // 2) voa até o pontinho do braço e quase para
+      descida, // 1) desce até a ponta de um braço, vendo o disco de cima
+      ...noBraco, // 2) por dentro do braço, passando pela nebulosa
+      ...voltaBuraco, // 3) volta no buraco negro do núcleo
+      ...curvaSaida, // 4) sai pela tangente, reto para o pontinho de um braço
+      antesDoPontinho, // 5) voa até o pontinho e quase para
       new THREE.Vector3().lerpVectors(antesDoPontinho, fimAproximacao, 0.5),
       fimAproximacao,
       naLupa(0.12), // 3) a lupa: a estrela vai do pontinho até fora da órbita de Netuno
@@ -279,12 +359,22 @@ export class Viagem {
     // Marcos que podem ser destacados (Saturno; os outros planetas cuidam de si)
     this.marcos = [{ nome: 'planeta', centro: planeta.centro, raio: planeta.raio }];
 
-    this.amostrar(inicioSistema, entrada);
+    this.amostrar([
+      [descida, noBraco[1]],
+      [inicioSistema, entrada],
+    ]);
 
     // onde (em s) começa e termina cada trecho
-    this.sBracoIni = this.sMaisPerto(noBraco[0]);
-    this.sBracoFim = this.sMaisPerto(fimBraco);
-    this.sLupaIni = this.sMaisPerto(fimAproximacao, this.sBracoFim);
+    // (o sistema solar ampliado fica por cima do lugar onde estava a galáxia: cada busca da
+    //  galáxia vai só até o marco seguinte)
+    const sGalaxia = this.sMaisPerto(antesDoPontinho);
+    this.sBracoIni = this.sMaisPerto(noBraco[0], 0, sGalaxia);
+    this.sNebulosa = this.sMaisPerto(rota.nebulosa, this.sBracoIni, sGalaxia);
+    this.sBracoFim = this.sMaisPerto(noBraco[noBraco.length - 1], this.sNebulosa, sGalaxia);
+    this.sBuraco = this.sMaisPerto(voltaBuraco[Math.floor(voltaBuraco.length / 2)], this.sBracoFim, sGalaxia); // meio da volta
+    this.sBuracoFim = this.sMaisPerto(voltaBuraco[voltaBuraco.length - 1], this.sBuraco, sGalaxia);
+    this.sCurvaFim = sGalaxia;
+    this.sLupaIni = this.sMaisPerto(fimAproximacao, this.sCurvaFim);
     this.sLupaFim = this.sMaisPerto(inicioSistema, this.sLupaIni);
     this.sPlanetas = encontros.map((e) => this.sMaisPerto(e.pos, this.sLupaFim));
     this.encontros = encontros.map((e, k) => ({ nome: e.nome, graus: e.graus, s: this.sPlanetas[k] }));
@@ -309,7 +399,7 @@ export class Viagem {
 
     this.tabelaDeTempo();
     // o recuo da câmera é medido em tempo (a estrela sai do braço rápida e vai freando)
-    this.tRecuoIni = this.tempoDe(this.sBracoFim - 10);
+    this.tRecuoIni = this.tempoDe(this.sBuracoFim - 15);
     this.tRecuoFim = this.tempoDe(this.sLupaIni - 10);
 
     // ângulo (em volta de Saturno) onde a câmera começa a acompanhar a volta
@@ -342,8 +432,8 @@ export class Viagem {
       this.anguloEspiral[i] = acumulado;
     }
     for (let i = 0; i <= M; i++) this.anguloEspiral[i] *= (VOLTAS_ESPIRAL * Math.PI * 2) / acumulado;
-    this.tEspiralIni = this.tempoDe(sJ) - 0.6;
-    this.tEspiralCheia = this.tempoDe(sJ) + 0.25;
+    this.tEspiralIni = this.tempoDe(sJ) - 0.8;
+    this.tEspiralCheia = this.tempoDe(sJ) + 0.3;
   }
 
   /** s do ponto do caminho mais perto de p (procurando entre `desde` e `ate`). */
@@ -377,8 +467,8 @@ export class Viagem {
     return melhor;
   }
 
-  /** inicioSistema/entradaSaturno: entre esses pontos o caminho é arredondado com mais força. */
-  amostrar(inicioSistema, entradaSaturno) {
+  /** trechos: lista de [de, ate] (pontos); entre eles o caminho é arredondado com mais força. */
+  amostrar(trechos) {
     // 1) amostra a curva em passos iguais de comprimento
     let P0 = new Float32Array((M + 1) * 3);
     const p = new THREE.Vector3();
@@ -388,24 +478,28 @@ export class Viagem {
       P0.set([p.x, p.y, p.z], i * 3);
     }
 
-    // 1b) no sistema solar (dos estilingues até a entrada em Saturno) arredonda bem mais,
-    //     para as ligações entre os planetas virarem curvas abertas, sem quinas
-    const iSis = Viagem.maisPerto(P0, inicioSistema);
-    // (a volta em Saturno passa duas vezes perto da entrada: fica com a primeira passagem)
-    let iSat = Viagem.maisPerto(P0, entradaSaturno, iSis);
-    const dSat = (j) => Math.hypot(P0[j * 3] - entradaSaturno.x, P0[j * 3 + 1] - entradaSaturno.y, P0[j * 3 + 2] - entradaSaturno.z);
-    for (let j = iSis; j < iSat; j++) {
-      if (dSat(j) < 3) {
-        iSat = j;
-        break;
-      }
-    }
+    // 1b) na galáxia (descida, nebulosa e buraco negro) e no sistema solar (estilingues) arredonda
+    //     bem mais, para as ligações virarem curvas abertas, sem quinas
     const kS = Math.max(1, Math.round((LIXA_SISTEMA / this.L) * M));
     const forte = mediaMovel(mediaMovel(P0, kS), kS);
+    const peso = new Float32Array(M + 1);
+    let desde = 0;
+    for (const [de, ate] of trechos) {
+      const iA = Viagem.maisPerto(P0, de, desde);
+      // (a volta em Saturno passa duas vezes perto da entrada: fica com a primeira passagem)
+      let iB = Viagem.maisPerto(P0, ate, iA);
+      for (let j = iA; j < iB; j++) {
+        if (Math.hypot(P0[j * 3] - ate.x, P0[j * 3 + 1] - ate.y, P0[j * 3 + 2] - ate.z) < 3) {
+          iB = j;
+          break;
+        }
+      }
+      for (let i = 0; i <= M; i++) peso[i] = Math.max(peso[i], smoothstep(iA, iA + 2 * kS, i) * (1 - smoothstep(iB - 3 * kS, iB - kS, i)));
+      desde = iB;
+    }
     const P1 = new Float32Array(P0.length);
     for (let i = 0; i <= M; i++) {
-      const w = smoothstep(iSis, iSis + 2 * kS, i) * (1 - smoothstep(iSat - 3 * kS, iSat - kS, i));
-      for (let c = 0; c < 3; c++) P1[i * 3 + c] = lerp(P0[i * 3 + c], forte[i * 3 + c], w);
+      for (let c = 0; c < 3; c++) P1[i * 3 + c] = lerp(P0[i * 3 + c], forte[i * 3 + c], peso[i]);
     }
     P0 = P1;
 
@@ -459,10 +553,14 @@ export class Viagem {
   /** Velocidade relativa em cada ponto do caminho. */
   fatorVelocidade(s, ampliacao) {
     let f = 1;
+    // na galáxia bem mais devagar (para dar tempo de ver), ainda mais na nebulosa e no buraco negro
+    f *= lerp(0.3, 1, smoothstep(this.sCurvaFim - 30, this.sCurvaFim + 40, s));
+    f *= 1 - 0.3 * Math.exp(-(((s - this.sNebulosa) / 45) ** 2));
+    f *= 1 - 0.2 * Math.exp(-(((s - this.sBuraco) / 40) ** 2));
     if (s < this.sLupaIni) {
       // voa até o pontinho do braço freando (quanto mais perto, mais devagar)
-      const x = clamp((this.sLupaIni - s) / (this.sLupaIni - this.sBracoFim));
-      if (s > this.sBracoFim) f = lerp(FATOR_LUPA * this.sigma0, 0.55, Math.sqrt(x));
+      const x = clamp((this.sLupaIni - s) / (this.sLupaIni - this.sCurvaFim));
+      if (s > this.sCurvaFim) f *= lerp(FATOR_LUPA * this.sigma0, 0.55, Math.pow(x, 0.3));
     } else if (s < this.sLupaFim) {
       // na lupa a velocidade cresce junto com a ampliação (o zoom parece constante)
       f = lerp(FATOR_LUPA * ampliacao, 1, smoothstep(0.55, 1, ampliacao));
@@ -576,7 +674,22 @@ export class Viagem {
     const U = (this._cU ??= new THREE.Vector3());
     const R = (this._cR ??= new THREE.Vector3());
     this.quadro(s, T, U, R);
-    const pPers = (this._pP ??= new THREE.Vector3()).copy(estrela).addScaledVector(T, -14).addScaledVector(U, 3.5);
+    // na descida a câmera fica mais alta e afastada, olhando também para o centro da galáxia
+    // (para ver o disco inteiro); no braço, mais perto (no meio das estrelas); no buraco negro vai
+    // para fora da curva e para cima, olhando entre a estrela e o buraco (mostra o disco de acreção)
+    const noBraco = smoothstep(this.sBracoIni - 70, this.sBracoIni + 30, s);
+    const noBuraco = smoothstep(this.sBracoFim - 40, this.sBracoFim + 30, s) * (1 - smoothstep(this.sBuracoFim - 45, this.sBuracoFim + 5, s));
+    const fora = (this._fo ??= new THREE.Vector3()).subVectors(estrela, this.buraco);
+    fora.addScaledVector(this.normalGalaxia, -fora.dot(this.normalGalaxia)).normalize();
+    const pPers = (this._pP ??= new THREE.Vector3())
+      .copy(estrela)
+      .addScaledVector(T, -lerp(lerp(32, 18, noBraco), 20, noBuraco))
+      .addScaledVector(U, lerp(lerp(16, 6, noBraco), 14, noBuraco))
+      .addScaledVector(fora, 18 * noBuraco);
+    const aPers = (this._aP ??= new THREE.Vector3())
+      .copy(estrela)
+      .lerp(this.centroGalaxia, 0.4 * (1 - noBraco))
+      .lerp(this.buraco, 0.4 * noBuraco);
 
     // --- de longe (galáxia, lupa e sistema solar)
     const andamento = smoothstep(this.sLupaFim - 40, sJupiter, s);
@@ -619,7 +732,7 @@ export class Viagem {
     const p1 = this._emArco(estrela, pPers, pLonge, recuo, (this._p1 ??= new THREE.Vector3()));
     const p2 = this._emArco(estrela, p1, pEsp, wEsp, (this._p2 ??= new THREE.Vector3()));
     this._emArco(estrela, p2, perto, wSat, pos);
-    alvo.copy(estrela).lerp(aLonge, recuo).lerp(aEsp, wEsp).lerp(aSat, wSat);
+    alvo.copy(aPers).lerp(aLonge, recuo).lerp(aEsp, wEsp).lerp(aSat, wSat);
     cima.copy(U).lerp(this.cimaSistema, recuo).lerp(U, wEsp).lerp(this.cimaOrbita, wSat).normalize();
     return 60;
   }
