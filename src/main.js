@@ -27,6 +27,10 @@ import {
   tremor,
 } from './utils.js';
 
+// Cor final da imagem: escurecer (1 = como era; maior = mais escuro), saturação (1 = como era)
+// e quanto puxa para o roxo (0 = nada)
+const COR = { escurecer: 1.35, saturacao: 1.4, roxo: 1 };
+
 // ------------------------------------------------------------------
 // Linha do tempo (segundos contados a partir do clique)
 // ------------------------------------------------------------------
@@ -98,7 +102,7 @@ function iniciar() {
   renderer.setSize(innerWidth, innerHeight);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
-  renderer.setClearColor('#07010f');
+  renderer.setClearColor('#050009');
   el.palco.appendChild(renderer.domElement);
 
   const cena = new THREE.Scene();
@@ -125,6 +129,31 @@ function iniciar() {
   const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.75, 0.45, 0.18);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
+  // Cor final: tudo mais escuro e com roxos mais fortes (ajuste em COR, no topo do arquivo)
+  composer.addPass(
+    new ShaderPass({
+      uniforms: {
+        tDiffuse: { value: null },
+        uGama: { value: COR.escurecer },
+        uSat: { value: COR.saturacao },
+        uRoxo: { value: COR.roxo },
+      },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `
+        uniform sampler2D tDiffuse; uniform float uGama; uniform float uSat; uniform float uRoxo; varying vec2 vUv;
+        void main() {
+          vec3 c = texture2D(tDiffuse, vUv).rgb;
+          float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+          // roxos mais fortes: mais saturação, e menos verde nos meios-tons (o verde deixa o roxo
+          // acinzentado); os brancos (núcleo da estrela, clarões) continuam brancos
+          c = max(mix(vec3(l), c, uSat), 0.0);
+          c *= mix(vec3(1.0 + 0.04 * uRoxo, 1.0 - 0.2 * uRoxo, 1.0 + 0.08 * uRoxo), vec3(1.0), smoothstep(0.6, 1.0, l));
+          // mais escuro: afunda as sombras e os meios-tons, sem apagar os brilhos
+          c = pow(c, vec3(uGama));
+          gl_FragColor = vec4(c, 1.0);
+        }`,
+    })
+  );
 
   cena.add(new THREE.AmbientLight('#9b7be0', 0.2));
   // luz vinda da câmera, só durante a explosão: mostra o relevo das rochas que voam na direção dela
