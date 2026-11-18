@@ -18,14 +18,14 @@ São **29 segundos** do clique até a tela branca, tudo em tons de roxo.
 | 2,25 s | **Big Bang**: clarão, ondas de choque, plasma roxo, nuvens de gás, protogaláxias, estrelas novas e rochas passando pela câmera. |
 | 2,25 – 4,45 s | A câmera, parada, assiste à explosão enquanto uma estrela roxa se acende no meio dela. |
 | 4,45 – 7,25 s | A câmera primeiro vira devagar para a estrela e depois vai, sem pressa, até ficar atrás dela. |
-| 7,25 – 10,6 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), sai do repouso e desce até a galáxia de seis braços, que aparece inteira, vista de cima. |
-| 10,6 – 13,1 s | Ela entra pela ponta de um braço e vai por dentro dele, no meio das estrelas, atravessando uma **nebulosa** colorida. |
-| 13,1 – 15,3 s | Seguindo a espiral do braço ela chega ao núcleo e dá meia-volta em torno de um **buraco negro** com disco de acreção. |
-| 15,3 – 16,0 s | Ela sai pela tangente, reto para um pontinho brilhante noutro braço (o sistema solar, 400 vezes menor que ela); a câmera recua até ver a galáxia inteira. |
-| 16,0 – 17,8 s | **Lupa**: tudo é ampliado em volta do pontinho. As estrelas do braço se espalham e somem, e o pontinho vira o sistema solar inteiro. |
-| 17,8 – 20,6 s | Visto de longe, com os oito planetas girando no próprio eixo e em volta do sol: a estrela começa em Netuno e vai para Vênus e Júpiter, sempre em curvas abertas (estilingue gravitacional em cada planeta). |
-| 20,6 – 22,4 s | De Júpiter a Mercúrio a câmera desce até a estrela e a segue girando em volta da direção dela, em espiral. |
-| 22,4 – 26,75 s | A estrela voa para Saturno e dá uma volta completa (360°) em volta dele, mais aberta do outro lado; a câmera dá a volta inteira junto. Depois a estrela para ao lado de Saturno. |
+| 7,25 – 10,7 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), sai do repouso e desce até a galáxia de seis braços, que aparece inteira, vista de cima. |
+| 10,7 – 13,3 s | Ela entra pela ponta de um braço e vai por dentro dele, no meio das estrelas, atravessando uma **nebulosa** colorida. |
+| 13,3 – 14,9 s | Seguindo a espiral do braço ela chega ao núcleo e dá meia-volta em torno de um **buraco negro** com disco de acreção. |
+| 14,9 – 15,7 s | Ela sai pela tangente, reto para um pontinho brilhante noutro braço (o sistema solar, 400 vezes menor que ela), com a câmera sempre atrás dela. |
+| 15,7 – 17,5 s | **Lupa**: tudo é ampliado em volta do pontinho enquanto a câmera se afasta devagar. As estrelas do braço se espalham e passam pela câmera, e o pontinho vira o sistema solar inteiro. |
+| 17,5 – 20,4 s | Visto de longe, com os oito planetas girando no próprio eixo e em volta do sol: a estrela começa em Netuno e vai para Vênus e Júpiter, sempre em curvas abertas (estilingue gravitacional em cada planeta). |
+| 20,4 – 22,3 s | De Júpiter a Mercúrio a câmera desce até a estrela e a segue girando em volta da direção dela, em espiral. |
+| 22,3 – 26,75 s | A estrela voa para Saturno e dá uma volta completa (360°) em volta dele, mais aberta do outro lado; a câmera dá a volta inteira junto. Depois a estrela para ao lado de Saturno. |
 | 26,75 – 29 s | A estrela treme, solta raios, engole os malabares, contrai e explode. A tela fica **branca**. |
 
 ## Colocando conteúdo depois da animação

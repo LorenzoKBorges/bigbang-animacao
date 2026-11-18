@@ -418,7 +418,16 @@ function iniciar() {
     const contrai = easeInCubic(progresso(SUPERNOVA - 0.25, SUPERNOVA, t));
     const acende = janela(te, 1.3, 1.9, 2.5, 3.8); // a estrela se acende enquanto a câmera está parada
     const piscada = kFinal > 0.3 ? 1 + (Math.random() - 0.5) * 0.7 * kFinal : 1;
-    estrela.atualizar(t, posEstrela, {
+    // o rastro faz parte da cena: durante a lupa ele é ampliado junto (o pedaço de antes da lupa
+    // se espalha e sai da tela, como as estrelas do braço)
+    const ampAgora = ampliacao(t);
+    const posRastro = (ti, out) => {
+      posEstrela(ti, out);
+      const r = ampAgora / ampliacao(ti);
+      if (r !== 1) out.sub(viagem.sol).multiplyScalar(r).add(viagem.sol);
+      return out;
+    };
+    estrela.atualizar(t, posRastro, {
       visivel: viva,
       brilho:
         (lerp(0.55, 1.2, smoothstep(0.5, 1.2, te)) + 1.4 * acende + 0.6 * kFinal) *
