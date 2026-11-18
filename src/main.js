@@ -30,17 +30,17 @@ import {
 // ------------------------------------------------------------------
 // Linha do tempo (segundos contados a partir do clique)
 // ------------------------------------------------------------------
-// Total: ~29 segundos do clique até a tela branca.
+// Total: ~29,5 segundos do clique até a tela branca.
 const CARGA = 2.0; // sobrecarga: treme, pulsa cada vez mais rápido
 const BANG = CARGA + 0.25; // implosão rápida e... BUM (2,25 s)
 const FOCO_INI = BANG + 2.2; // a câmera, parada, assiste à explosão; depois vira para a estrela...
 const FOCO_FIM = BANG + 5.0; // ...e vai devagar até ficar atrás dela (7,25 s)
-// a viagem: galáxia (braço com nebulosa, buraco negro), lupa, sistema solar e volta em Saturno
+// a viagem: galáxia (braço com nebulosa, buraco negro), lupa, sistema solar, voltas em Saturno e subida em espiral
 const VIAGEM_INI = FOCO_FIM;
-const VIAGEM_DUR = 19.5;
-const FINAL_INI = VIAGEM_INI + VIAGEM_DUR; // a estrela para ao lado de Saturno e treme (26,75 s)
-const SUPERNOVA = FINAL_INI + 1.3; // ela explode
-const BRANCO = SUPERNOVA + 0.9; // tela 100% branca (~29 s)
+const VIAGEM_DUR = 20.2;
+const FINAL_INI = VIAGEM_INI + VIAGEM_DUR; // lá no alto da espiral a estrela para e treme (27,45 s)
+const SUPERNOVA = FINAL_INI + 1.2; // ela explode
+const BRANCO = SUPERNOVA + 0.9; // tela 100% branca (~29,5 s)
 
 // Batida do coração e fluxo de energia (a frequência sobe durante a carga)
 const BATIDA_0 = 0.85;
@@ -280,6 +280,7 @@ function iniciar() {
   camViagem1.fov = viagem.camera(VIAGEM_DUR, camViagem1.pos, camViagem1.alvo, camViagem1.cima);
   // no final a câmera só se aproxima da estrela, vindo do lado em que a viagem terminou
   const ladoFinal = camViagem1.pos.clone().sub(fimViagem).normalize();
+  const tremorFimViagem = viagem.tremor(VIAGEM_DUR);
 
   function posCameraExplosao(te, out) {
     const k = easeOutCubic(clamp(te / 2.0));
@@ -325,6 +326,8 @@ function iniciar() {
       fov = lerp(60, camViagem0.fov, ir);
     } else if (t < FINAL_INI) {
       fov = viagem.camera(t - VIAGEM_INI, camPos, camAlvo, camCima);
+      // nas voltas em Saturno a tela treme cada vez mais, conforme a estrela acelera
+      tremorAmp = viagem.tremor(t - VIAGEM_INI);
     } else {
       // final: a câmera sai de trás e vai para o lado da estrela, chegando perto
       const tf = t - FINAL_INI;
@@ -339,7 +342,8 @@ function iniciar() {
       camCima.copy(camViagem1.cima).lerp(vTmp.set(0, 1, 0), b).normalize();
       fov = lerp(camViagem1.fov, 55, b);
       const k = progresso(FINAL_INI + 0.1, SUPERNOVA, t);
-      tremorAmp = 0.2 * k * k + (t > SUPERNOVA ? 1.2 * Math.exp(-(t - SUPERNOVA) * 3) : 0);
+      tremorAmp =
+        tremorFimViagem * (1 - smoothstep(0, 0.5, tf)) + 0.2 * k * k + (t > SUPERNOVA ? 1.2 * Math.exp(-(t - SUPERNOVA) * 3) : 0);
     }
 
     // tela em pé (celular): abre o campo de visão para caber o mesmo tanto na horizontal
