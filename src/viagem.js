@@ -807,6 +807,12 @@ export class Viagem {
     return 60;
   }
 
+  /** Nas voltas rápidas em Saturno o rastro fica longo (0..1): aparecem várias voltas ao mesmo tempo. */
+  rastroLongo(t) {
+    const s = this.sEm(t);
+    return smoothstep(this.sVolta1 - 60, this.sVolta1 + 40, s) * (1 - smoothstep(this.sOrbFim + 40, this.L, s));
+  }
+
   /** Quanto a tela treme no instante t da viagem: cresce com a velocidade nas voltas em Saturno. */
   tremor(t) {
     const s = this.sEm(t);

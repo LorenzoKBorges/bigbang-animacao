@@ -474,6 +474,7 @@ function iniciar() {
       limite: kFinal,
       luz: 55 * smoothstep(0.6, 1.4, te) * (1 + 2 * kFinal),
       rastro: smoothstep(0.05, 0.3, te) * (1 - smoothstep(FINAL_INI + 0.1, FINAL_INI + 0.7, t)) * (1 - semRastro),
+      quedaRastro: lerp(1.4, 0.35, t > VIAGEM_INI && t < FINAL_INI ? viagem.rastroLongo(t - VIAGEM_INI) : 0),
       raioMalabares: (x) =>
         smoothstep(FOCO_INI - 0.6, FOCO_FIM - 0.3, x) * (1 - easeInQuad(progresso(FINAL_INI + 0.05, FINAL_INI + 0.75, x))),
       // vista de longe (sistema solar inteiro), a estrela e o rastro ficam maiores para não sumir

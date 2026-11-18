@@ -34,6 +34,7 @@ class Rastro {
       uCorA: { value: new THREE.Color(corA) },
       uCorB: { value: new THREE.Color(corB) },
       uOpac: { value: 0 },
+      uQueda: { value: 1.4 },
     };
     this.malha = new THREE.Mesh(
       this.geo,
@@ -51,11 +52,11 @@ class Rastro {
           }
         `,
         fragmentShader: /* glsl */ `
-          uniform vec3 uCorA; uniform vec3 uCorB; uniform float uOpac;
+          uniform vec3 uCorA; uniform vec3 uCorB; uniform float uOpac; uniform float uQueda;
           varying float vIdade; varying float vLado; varying float vEspaco;
           void main() {
             float borda = 1.0 - abs(vLado);
-            float a = pow(borda, 1.6) * pow(1.0 - vIdade, 1.4) * uOpac * vEspaco;
+            float a = pow(borda, 1.6) * pow(1.0 - vIdade, uQueda) * uOpac * vEspaco;
             vec3 c = mix(uCorA, uCorB, smoothstep(0.0, 0.6, vIdade));
             c = mix(c, vec3(1.0), pow(borda, 6.0) * (1.0 - vIdade) * 0.6);
             gl_FragColor = vec4(c * a * 1.3, 1.0);
@@ -76,8 +77,10 @@ class Rastro {
   }
 
   /** posicao(i, out) devolve a posição do ponto i (0 = mais novo). */
-  atualizar(posicao, opac, larguraMul = 1) {
+  /** `queda`: quanto o rastro apaga ao longo do comprimento (menor = a parte antiga brilha mais). */
+  atualizar(posicao, opac, larguraMul = 1, queda = 1.4) {
     this.u.uOpac.value = opac;
+    this.u.uQueda.value = queda;
     this.malha.visible = opac > 0.001;
     if (!this.malha.visible) return;
     const n = this.n;
@@ -163,7 +166,7 @@ export class Estrela {
   /**
    * @param t        relógio da animação
    * @param posEm    função (t, out) => posição da estrela no instante t
-   * @param e        estado: { visivel, brilho, escala, tremor, raioMalabares(t), luz, rastro, limite }
+   * @param e        estado: { visivel, brilho, escala, tremor, raioMalabares(t), luz, rastro, quedaRastro, limite }
    */
   atualizar(t, posEm, e) {
     this.grupo.visible = e.visivel;
@@ -196,7 +199,7 @@ export class Estrela {
     this.luz.color.copy(COR_LUZ).lerp(COR_LUZ_LIMITE, e.limite);
 
     // rastro: posições da estrela nos últimos ~2,2 s
-    this.rastro.atualizar((i, out) => posEm(t - i / 100, out), e.rastro, v);
+    this.rastro.atualizar((i, out) => posEm(t - i / 100, out), e.rastro, v, e.quedaRastro ?? 1.4);
 
     for (const m of this.malabares) {
       const fr = e.raioMalabares(t);
