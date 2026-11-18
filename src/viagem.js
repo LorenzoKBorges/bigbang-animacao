@@ -781,9 +781,10 @@ export class Viagem {
     const altura = this.cimaVolta.dot((this._h ??= new THREE.Vector3()).subVectors(estrela, this.saturno));
     const pSat = (this._pS ??= new THREE.Vector3())
       .copy(this.saturno)
-      .addScaledVector(dirCam, lerp(lerp(RAIO_CAMERA, 108, abre), 62, sobe))
+      .addScaledVector(dirCam, lerp(lerp(RAIO_CAMERA, 108, abre), 85, sobe))
       .addScaledVector(this.cimaOrbita, lerp(20, 46, abre) * (1 - sobe))
-      .addScaledVector(this.cimaVolta, Math.max(0, altura) * 0.55 * sobe);
+      // (fica mais baixa que a estrela, olhando para cima: as voltas da espiral aparecem abertas)
+      .addScaledVector(this.cimaVolta, Math.max(0, altura) * 0.35 * sobe);
     const aSat = (this._aS ??= new THREE.Vector3()).lerpVectors(this.saturno, estrela, lerp(lerp(0.3, 0.12, abre), 1, sobe));
     const perto = pSat;
 
