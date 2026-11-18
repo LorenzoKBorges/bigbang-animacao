@@ -73,9 +73,12 @@ export class Ceu {
   }
 }
 
+/** Quantos braços a galáxia tem. */
+export const BRACOS = 6;
+
 /** Ângulo (rad) do centro do braço `braco` a uma distância `r` do núcleo (espiral logarítmica). */
 function anguloDoBraco(braco, r) {
-  return (braco * Math.PI * 2) / 3 + Math.log(r / 6) * 1.9;
+  return (braco * Math.PI * 2) / BRACOS + Math.log(r / 6) * 1.9;
 }
 
 /** Nebulosa colorida num braço da galáxia: nuvens de gás e estrelas jovens. Acende quando a estrela passa. */
@@ -244,9 +247,10 @@ export class Galaxia {
         y = gauss(rand) * 6 * Math.exp(-r / 14);
         c.copy(cNucleo).lerp(cDentro, rand() * 0.4);
       } else {
-        const braco = Math.floor(rand() * 3);
+        const braco = Math.floor(rand() * BRACOS);
         r = R * (0.08 + 0.92 * Math.pow(rand(), 0.8));
-        a = anguloDoBraco(braco, r) + gauss(rand) * 0.3 * (1 - (r / R) * 0.3);
+        // (com 6 braços cada um é mais fino, para não se misturarem)
+        a = anguloDoBraco(braco, r) + gauss(rand) * 0.17 * (1 - (r / R) * 0.3);
         y = gauss(rand) * 1.6 * (1 - (r / R) * 0.5);
         c.copy(cDentro).lerp(cFora, Math.min(1, r / R + rand() * 0.2));
         if (rand() < 0.06) {
@@ -323,7 +327,7 @@ export class Galaxia {
     return out.set(Math.cos(a) * r, 0, Math.sin(a) * r);
   }
 
-  /** Centro do braço `braco` (0, 1 ou 2) a uma distância `r` do núcleo, no mundo. */
+  /** Centro do braço `braco` (0 a BRACOS - 1) a uma distância `r` do núcleo, no mundo. */
   pontoDoBraco(braco, r, out = new THREE.Vector3()) {
     this.grupo.updateMatrixWorld();
     return Galaxia.localDoBraco(braco, r, out).applyMatrix4(this.grupo.matrixWorld);

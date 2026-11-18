@@ -18,7 +18,7 @@ São **29 segundos** do clique até a tela branca, tudo em tons de roxo.
 | 2,25 s | **Big Bang**: clarão, ondas de choque, plasma roxo, nuvens de gás, protogaláxias, estrelas novas e rochas passando pela câmera. |
 | 2,25 – 4,45 s | A câmera, parada, assiste à explosão enquanto uma estrela roxa se acende no meio dela. |
 | 4,45 – 7,25 s | A câmera primeiro vira devagar para a estrela e depois vai, sem pressa, até ficar atrás dela. |
-| 7,25 – 10,6 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), sai do repouso e desce até a galáxia, que aparece inteira, vista de cima. |
+| 7,25 – 10,6 s | A estrela, com três bolinhas de luz girando em volta (os "malabares"), sai do repouso e desce até a galáxia de seis braços, que aparece inteira, vista de cima. |
 | 10,6 – 13,1 s | Ela entra pela ponta de um braço e vai por dentro dele, no meio das estrelas, atravessando uma **nebulosa** colorida. |
 | 13,1 – 15,3 s | Seguindo a espiral do braço ela chega ao núcleo e dá meia-volta em torno de um **buraco negro** com disco de acreção. |
 | 15,3 – 16,0 s | Ela sai pela tangente, reto para um pontinho brilhante noutro braço (o sistema solar, 400 vezes menor que ela); a câmera recua até ver a galáxia inteira. |
@@ -83,7 +83,7 @@ npm run dev
 | `src/main.js` | Linha do tempo (durações), posições dos objetos, câmera e clarões. |
 | `src/singularidade.js` | O ponto pulsante e a sobrecarga. |
 | `src/explosao.js` | A explosão (usada no Big Bang e na explosão final da estrela). |
-| `src/universo.js` | Céu, galáxia (com a nebulosa e o buraco negro do núcleo) e Saturno. |
+| `src/universo.js` | Céu, galáxia (6 braços, a nebulosa e o buraco negro do núcleo; `BRACOS` muda quantos braços) e Saturno. |
 | `src/sistema.js` | O sistema solar: sol, os planetas (tamanho, órbita, cores, rotação) e as linhas das órbitas. |
 | `src/estrela.js` | A estrela, os malabares e os rastros. |
 | `src/viagem.js` | O caminho da estrela (braço da galáxia, nebulosa, buraco negro, lupa, Netuno → Vênus → Júpiter → Mercúrio, volta em Saturno), a velocidade em cada trecho e as câmeras. |

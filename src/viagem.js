@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { smoothstep, clamp, lerp } from './utils.js';
 import { PLANETAS, ORBITA_SATURNO, SistemaSolar } from './sistema.js';
-import { Galaxia } from './universo.js';
+import { Galaxia, BRACOS } from './universo.js';
 
 const M = 6000; // amostras ao longo do caminho
 const SUAVIZAR = 35; // a câmera de perseguição segue a direção média de ±35 de caminho
@@ -186,7 +186,8 @@ export function planejarRota(galaxia, inicio) {
   const a0 = Math.atan2(Galaxia.localDoBraco(braco, ate).z, Galaxia.localDoBraco(braco, ate).x);
   const dr0 = (ate - RAIO_BURACO) / ate; // ...e o raio vai fechando no ritmo da espiral
   let melhor = null;
-  for (let b = 0; b < 3; b++) {
+  for (let b = 0; b < BRACOS; b++) {
+    if (b === braco) continue; // o pontinho fica noutro braço
     for (let r = 86; r <= 108; r += 2) {
       const S = Galaxia.localDoBraco(b, r);
       const aT = Math.atan2(S.z, S.x) + Math.acos(RAIO_BURACO / r); // onde a reta sai tangente
