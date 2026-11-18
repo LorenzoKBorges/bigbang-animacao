@@ -418,12 +418,15 @@ function iniciar() {
     const contrai = easeInCubic(progresso(SUPERNOVA - 0.25, SUPERNOVA, t));
     const acende = janela(te, 1.3, 1.9, 2.5, 3.8); // a estrela se acende enquanto a câmera está parada
     const piscada = kFinal > 0.3 ? 1 + (Math.random() - 0.5) * 0.7 * kFinal : 1;
-    // o rastro faz parte da cena: durante a lupa ele é ampliado junto (o pedaço de antes da lupa
-    // se espalha e sai da tela, como as estrelas do braço)
+    // o rastro faz parte da cena: na lupa ele é ampliado junto. A estrela quase para no pontinho,
+    // então o rastro some logo antes da lupa e volta quando ela sai para Netuno (o pedaço de
+    // antes da lupa fica preso onde a lupa começou, senão viraria um risco atravessando a tela)
     const ampAgora = ampliacao(t);
+    const semRastro = janela(t, tLupa - 0.35, tLupa, tLupaFim - 0.1, tLupaFim + 0.4);
     const posRastro = (ti, out) => {
-      posEstrela(ti, out);
-      const r = ampAgora / ampliacao(ti);
+      const tj = t > tLupa ? Math.max(ti, tLupa) : ti;
+      posEstrela(tj, out);
+      const r = ampAgora / ampliacao(tj);
       if (r !== 1) out.sub(viagem.sol).multiplyScalar(r).add(viagem.sol);
       return out;
     };
@@ -437,7 +440,7 @@ function iniciar() {
       tremor: 0.55 * kFinal * kFinal,
       limite: kFinal,
       luz: 55 * smoothstep(0.6, 1.4, te) * (1 + 2 * kFinal),
-      rastro: smoothstep(0.05, 0.3, te) * (1 - smoothstep(FINAL_INI + 0.1, FINAL_INI + 0.7, t)),
+      rastro: smoothstep(0.05, 0.3, te) * (1 - smoothstep(FINAL_INI + 0.1, FINAL_INI + 0.7, t)) * (1 - semRastro),
       raioMalabares: (x) =>
         smoothstep(FOCO_INI - 0.6, FOCO_FIM - 0.3, x) * (1 - easeInQuad(progresso(FINAL_INI + 0.05, FINAL_INI + 0.75, x))),
       // vista de longe (sistema solar inteiro), a estrela e o rastro ficam maiores para não sumir
