@@ -22,7 +22,8 @@ const ACELERACAO_SATURNO = 6; // no fim das voltas a estrela está 7 vezes mais 
 const SUBIDA = { voltas: 4.5, altura: 95, raioFinal: 2 }; // depois é lançada para cima numa espiral que vai afinando
 const TREMOR_SATURNO = 2.4; // a tela treme mais conforme a estrela acelera
 const INCLINACAO_VOLTAS = THREE.MathUtils.degToRad(58); // cada volta num plano bem inclinado...
-const GIRO_DAS_VOLTAS = THREE.MathUtils.degToRad(-300); // ...que gira ~100° a cada volta (voltas em pontos diferentes)
+const GIRO_DAS_VOLTAS = THREE.MathUtils.degToRad(-180); // ...que gira 60° a cada volta: os três planos ficam igualmente espaçados
+const ABERTURA_VOLTAS = 26; // cada volta é uma elipse aberta: vai de 32 a 32 + 26 de distância de Saturno
 // Galáxia, em coordenadas dela (disco no plano y = 0, núcleo na origem)
 const INCLINACAO_GALAXIA = THREE.MathUtils.degToRad(25); // disco inclinado para a câmera da explosão
 const BRACO_DA_ROTA = { braco: 2, de: 110, ate: 40 }; // a estrela entra pela ponta deste braço e vai por dentro dele até perto do núcleo
@@ -324,7 +325,7 @@ export class Viagem {
     const nodos = new THREE.Vector3();
     const naOrbita = (fi) => {
       const x = fi / total;
-      const r = RAIO_ORBITA - 2 + (VARIACAO_ORBITA + 2) * Math.sin(fi / 2) ** 2 * (1 - 0.3 * x);
+      const r = RAIO_ORBITA - 2 + ABERTURA_VOLTAS * Math.sin(fi / 2) ** 2 * (1 - 0.25 * x);
       const p = noPlano(fi, r, new THREE.Vector3()).sub(C);
       const inclinacao = INCLINACAO_VOLTAS * smoothstep(0, Math.PI * 0.9, fi) * (1 - smoothstep(total - Math.PI, total, fi));
       nodos.copy(lado).negate().applyAxisAngle(cimaVolta, GIRO_DAS_VOLTAS * x + 0.6);
@@ -619,7 +620,7 @@ export class Viagem {
       const [, , sJ, sM] = this.sPlanetas;
       f *= lerp(1, 0.45, smoothstep(sJ - 40, sJ + 20, s) * (1 - smoothstep(sM - 20, sM + 30, s)));
       // as voltas em Saturno começam devagar e vão acelerando...
-      f *= lerp(1, 0.6, smoothstep(this.sOrbIni - 60, this.sOrbIni, s));
+      f *= lerp(1, 0.66, smoothstep(this.sOrbIni - 60, this.sOrbIni, s));
       const acel = smoothstep(this.sOrbIni + (this.sVolta1 - this.sOrbIni) * 0.3, this.sOrbFim, s);
       f *= 1 + ACELERACAO_SATURNO * acel * acel;
       // ...e na subida em espiral ela vai freando até quase parar lá em cima
@@ -788,8 +789,8 @@ export class Viagem {
     const altura = this.cimaVolta.dot((this._h ??= new THREE.Vector3()).subVectors(estrela, this.saturno));
     const pSat = (this._pS ??= new THREE.Vector3())
       .copy(this.saturno)
-      .addScaledVector(dirCam, lerp(lerp(RAIO_CAMERA, 108, abre), 85, sobe))
-      .addScaledVector(this.cimaOrbita, lerp(20, 46, abre) * (1 - sobe))
+      .addScaledVector(dirCam, lerp(lerp(RAIO_CAMERA, 125, abre), 85, sobe))
+      .addScaledVector(this.cimaOrbita, lerp(20, 55, abre) * (1 - sobe))
       // (fica mais baixa que a estrela, olhando para cima: as voltas da espiral aparecem abertas)
       .addScaledVector(this.cimaVolta, Math.max(0, altura) * 0.2 * sobe);
     const aSat = (this._aS ??= new THREE.Vector3()).lerpVectors(this.saturno, estrela, lerp(lerp(0.3, 0.12, abre), 1, sobe));
