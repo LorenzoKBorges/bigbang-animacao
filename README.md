@@ -50,6 +50,15 @@ window.addEventListener('bigbang:fim', () => {
 
 O CSS do final fica em `css/estilo.css` (`body.fim` e `#final`).
 
+## O olho (`olho/`)
+
+Uma página separada: abra `olho/index.html`. É um olho com falhas em volta que olha para onde o
+mouse (ou o dedo) está. Se o ponteiro ficar parado por mais de 5 segundos, ele começa a olhar
+para os lados sozinho; assim que o ponteiro mexe, ele volta a seguir.
+
+Os ajustes ficam no topo de `olho/olho.js`: `PARADO` (o tempo até ele olhar sozinho),
+`RESOLUCAO` (quanto menor, mais granulado) e as cores em `COR`.
+
 ## Atalhos para desenvolver
 
 Coloque no fim do endereço:
