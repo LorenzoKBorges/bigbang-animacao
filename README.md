@@ -52,12 +52,16 @@ O CSS do final fica em `css/estilo.css` (`body.fim` e `#final`).
 
 ## O olho (`olho/`)
 
-Uma página separada: abra `olho/index.html`. É um olho com falhas em volta que olha para onde o
-mouse (ou o dedo) está. Se o ponteiro ficar parado por mais de 5 segundos, ele começa a olhar
-para os lados sozinho; assim que o ponteiro mexe, ele volta a seguir.
+Uma página separada: abra `olho/index.html`. É um olho roxo no mesmo estilo de arte do Big Bang
+(luz, brilho difuso e partículas): contorno de luz em forma de amêndoa, a íris como uma pequena
+galáxia girando devagar e a pupila como um buraco negro com um anel de luz em volta.
 
-Os ajustes ficam no topo de `olho/olho.js`: `PARADO` (o tempo até ele olhar sozinho),
-`RESOLUCAO` (quanto menor, mais granulado) e as cores em `COR`.
+Por enquanto é só o olho, olhando para a frente; o movimento e os efeitos em volta vêm depois.
+
+O código fica em `src/olho.js` (medidas e cores no topo, em `OLHO` e `COR_OLHO`) e o arquivo que a
+página carrega, `js/olho.js`, é gerado por `npm run build` (ou só ele: `npm run build:olho`).
+O brilho difuso e a cor final (mais escura, roxos mais fortes) são os mesmos do Big Bang e ficam
+em `src/posprocesso.js`.
 
 ## Atalhos para desenvolver
 
@@ -82,7 +86,7 @@ npm install
 npm run build
 ```
 
-Para ir regerando sozinho enquanto edita:
+Para ir regerando sozinho enquanto edita (o olho: `npm run dev:olho`):
 
 ```bash
 npm run dev
@@ -91,6 +95,7 @@ npm run dev
 | Arquivo | O quê |
 | --- | --- |
 | `src/main.js` | Linha do tempo (durações), posições dos objetos, câmera e clarões. |
+| `src/posprocesso.js` | Brilho difuso e a cor final da imagem (`COR`: mais escura, roxos mais fortes). |
 | `src/singularidade.js` | O ponto pulsante e a sobrecarga. |
 | `src/explosao.js` | A explosão (usada no Big Bang e na explosão final da estrela). |
 | `src/universo.js` | Céu, galáxia (6 braços, a nebulosa e o buraco negro do núcleo; `BRACOS` muda quantos braços) e Saturno. |

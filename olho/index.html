@@ -9,22 +9,30 @@
       body {
         margin: 0;
         height: 100%;
-        background: #07020c;
+        background: #050009;
         overflow: hidden;
       }
-      canvas {
+      #palco,
+      #palco canvas {
         position: fixed;
         inset: 0;
         width: 100%;
         height: 100%;
         display: block;
-        touch-action: none;
-        cursor: crosshair;
+      }
+      /* escurece as bordas (o mesmo do Big Bang) */
+      #vinheta {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 35%, rgba(12, 0, 30, 0.95) 100%);
+        opacity: 0.8;
       }
     </style>
   </head>
   <body>
-    <canvas id="olho" role="img" aria-label="Um olho com falhas em volta que segue o ponteiro"></canvas>
-    <script src="olho.js"></script>
+    <div id="palco" role="img" aria-label="Um olho roxo brilhante"></div>
+    <div id="vinheta"></div>
+    <script src="../js/olho.js"></script>
   </body>
 </html>
