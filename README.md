@@ -56,7 +56,14 @@ Uma página separada: abra `olho/index.html`. É um olho roxo no mesmo estilo de
 (luz, brilho difuso e partículas): contorno de luz em forma de amêndoa, a íris como uma pequena
 galáxia girando devagar e a pupila como um buraco negro com um anel de luz em volta.
 
-Por enquanto é só o olho, olhando para a frente; o movimento e os efeitos em volta vêm depois.
+Animação:
+
+- o olho segue o mouse (ou o dedo, no celular);
+- se o ponteiro fica parado por 7 segundos, ele volta a olhar para a frente, fica assim uns 3
+  segundos e depois começa a olhar para lugares aleatórios; mexeu, volta a seguir;
+- pisca a cada 8 a 10 segundos.
+
+Os tempos ficam em `ANIMACAO`, no topo de `src/olho.js`. Os efeitos em volta do olho vêm depois.
 
 O código fica em `src/olho.js` (medidas e cores no topo, em `OLHO` e `COR_OLHO`) e o arquivo que a
 página carrega, `js/olho.js`, é gerado por `npm run build` (ou só ele: `npm run build:olho`).
