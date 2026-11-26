@@ -6,14 +6,14 @@
  * fica parado por mais de 5 segundos, ele passa a olhar para os lados sozinho, e assim que o
  * ponteiro mexe ele volta a seguir.
  *
- * Tudo é desenhado numa imagem pequena (cada "pixel" vira um quadradinho de PIXEL x PIXEL na
- * tela) e ampliada sem suavizar: é isso que dá o aspecto granulado, de imagem estragada.
+ * Tudo é desenhado numa imagem pequena (uns 340 "pixels" de largura, cada um vira um quadradinho
+ * na tela) e ampliada sem suavizar: é isso que dá o aspecto granulado, de imagem estragada.
  */
 (() => {
   'use strict';
 
   // ---------------------------------------------------------------- ajustes
-  const PIXEL = 3; // tamanho do "pixel" na tela (maior = mais granulado)
+  const RESOLUCAO = 340; // largura (em "pixels" grandes) da imagem: menor = mais granulado
   const PARADO = 5000; // ms com o ponteiro parado até o olho começar a olhar para os lados
   const COR = {
     fundo: '#07020c',
@@ -41,6 +41,7 @@
 
   let W = 0;
   let H = 0;
+  let PIXEL = 3; // tamanho de cada "pixel" da imagem na tela (depende do tamanho da tela)
   let S = 0; // largura do olho (em pixels da imagem pequena)
   let cx = 0;
   let cy = 0;
@@ -49,6 +50,8 @@
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     tela.width = Math.round(innerWidth * dpr);
     tela.height = Math.round(innerHeight * dpr);
+    // a imagem tem sempre mais ou menos o mesmo tamanho: em telas grandes os pixels ficam maiores
+    PIXEL = Math.min(6, Math.max(2, Math.min(innerWidth, innerHeight * 1.78) / RESOLUCAO));
     W = Math.max(90, Math.round(innerWidth / PIXEL));
     H = Math.max(90, Math.round(innerHeight / PIXEL));
     img.width = copia.width = W;
@@ -176,8 +179,9 @@
   const manchas = [];
   function novaMancha() {
     return {
-      ang: rand(Math.PI * 2),
-      dist: 1 + Math.abs(gauss()) * 0.5,
+      t: rand(0.03, 0.97),
+      lado: Math.random() < 0.5 ? -1 : 1,
+      dist: rand(0.02, 0.2),
       r: rand(0.04, 0.12),
       vida: rand(0.25, 1.2),
       idade: 0,
@@ -228,6 +232,27 @@
     g.closePath();
   }
 
+  /**
+   * Ponto do contorno do olho (t de 0 a 1, da ponta esquerda à direita; lado -1 = em cima,
+   * 1 = embaixo) e a direção para fora nesse ponto. `c` é o controle da curva (meia altura / 0,75).
+   */
+  const contorno = { x: 0, y: 0, nx: 0, ny: 0 };
+  function pontoContorno(t, lado, c) {
+    const u = 1 - t;
+    const bx = u * u * u * -0.5 + 3 * u * u * t * -0.2 + 3 * u * t * t * 0.2 + t * t * t * 0.5;
+    const by = 3 * u * u * t + 3 * u * t * t;
+    const dx = 3 * u * u * 0.3 + 6 * u * t * 0.4 + 3 * t * t * 0.3;
+    const dy = 3 * u * u - 3 * t * t;
+    const nx = -dy * c;
+    const ny = lado * dx * S;
+    const nl = Math.hypot(nx, ny) || 1;
+    contorno.x = cx + bx * S;
+    contorno.y = cy + lado * by * c;
+    contorno.nx = nx / nl;
+    contorno.ny = ny / nl;
+    return contorno;
+  }
+
   function desenharEstatica(dt, mh) {
     const area = W * H;
     // neve fraquinha no fundo todo
@@ -237,22 +262,22 @@
       g.globalAlpha = rand(0.05, 0.35);
       g.fillRect(Math.floor(rand(W)), Math.floor(rand(H)), 1, 1);
     }
-    // aura de estática em volta do olho: bem densa encostada na borda, rareando para fora
-    // (a densidade varia em volta, como manchas de neve de TV)
-    const n = Math.round(S * S * (0.32 + surto * 0.25));
-    const rx = S / 2;
-    const ry = mh * 1.3 + S * 0.04;
+    // aura de estática grudada no contorno do olho: bem densa encostada na borda, rareando para
+    // fora (a densidade varia em volta, como manchas de neve de TV)
+    const n = Math.round(S * S * (0.3 + surto * 0.25));
+    const c = Math.max(mh, S * 0.16) / 0.75; // mesma curva da amêndoa
     const fase = Math.floor(performance.now() / 90) * 0.7; // o desenho das manchas muda aos saltos
     for (let i = 0; i < n; i++) {
-      const a = rand(Math.PI * 2);
+      // ponto no contorno (curva de cima ou de baixo) e a direção para fora nesse ponto
+      const lado = Math.random() < 0.5 ? -1 : 1;
+      const { x: px, y: py, nx, ny } = pontoContorno(Math.random(), lado, c);
+      const a = Math.atan2(py - cy, px - cx);
       const forca = 0.55 + 0.45 * Math.sin(a * 3 + fase) * Math.sin(a * 7 - fase * 1.3);
-      const d = 0.98 + Math.pow(Math.random(), 2.4) * (0.25 + 0.6 * forca);
-      const x = cx + Math.cos(a) * rx * d;
-      const y = cy + Math.sin(a) * ry * d;
-      if (Math.random() > forca + 0.25) continue;
+      if (Math.random() > forca + 0.3) continue;
+      const fora = S * (0.012 + Math.pow(Math.random(), 2.3) * (0.08 + 0.26 * forca));
       g.globalAlpha = rand(0.45, 1);
-      const t = Math.random() < 0.15 ? 2 : 1;
-      g.fillRect(Math.floor(x), Math.floor(y), t, t);
+      const tam = Math.random() < 0.15 ? 2 : 1;
+      g.fillRect(Math.floor(px + nx * fora), Math.floor(py + ny * fora), tam, tam);
     }
     // manchas de estática (pedaços de "neve" mais densos)
     for (let i = 0; i < manchas.length; i++) {
@@ -262,8 +287,9 @@
         manchas[i] = novaMancha();
         continue;
       }
-      const mx = cx + Math.cos(m.ang) * rx * m.dist;
-      const my = cy + Math.sin(m.ang) * ry * m.dist;
+      const p = pontoContorno(m.t, m.lado, c);
+      const mx = p.x + p.nx * m.dist * S;
+      const my = p.y + p.ny * m.dist * S;
       const r = m.r * S;
       const pontos = Math.round(r * r * 1.6);
       for (let j = 0; j < pontos; j++) {
