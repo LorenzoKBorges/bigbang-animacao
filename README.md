@@ -53,8 +53,9 @@ O CSS do final fica em `css/estilo.css` (`body.fim` e `#final`).
 ## O olho (`olho/`)
 
 Uma página separada: abra `olho/index.html`. É um olho roxo no mesmo estilo de arte do Big Bang
-(luz, brilho difuso e partículas): contorno de luz em forma de amêndoa, a íris como uma pequena
-galáxia girando devagar e a pupila como um buraco negro com um anel de luz em volta.
+(luz e brilho difuso), simples: contorno de luz em forma de amêndoa, a íris em duas faixas de cor
+(magenta perto da pupila, violeta por fora) e a pupila como um furo transparente, por onde se vê o
+céu estrelado.
 
 Animação:
 
