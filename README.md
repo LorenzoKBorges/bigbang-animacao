@@ -64,8 +64,16 @@ Animação:
   segundos e depois começa a olhar para lugares aleatórios; mexeu, volta a seguir;
 - cada um pisca a cada 8 a 10 segundos, no seu ritmo.
 
-Os tempos ficam em `ANIMACAO` e a posição, o tamanho e a inclinação de cada olho em `ESPALHADOS`
-(uma arrumação para tela deitada e outra para tela em pé), no topo de `src/olho.js`. Os efeitos em volta do olho vêm depois.
+Efeitos:
+
+- de vez em quando cada olho "falha" (glitch) por uma fração de segundo: as linhas se dividem numa
+  cópia azul e outra vermelho-escura, algumas faixas escorregam para o lado e tudo pisca;
+- clicou (ou tocou) num olho: ele pisca vermelho, fica quase fechado por uns 5 segundos e depois
+  abre. Em cima de um olho o cursor vira a mãozinha.
+
+Os tempos ficam em `ANIMACAO`, as cores e tempos dos efeitos em `EFEITOS` e a posição, o tamanho e
+a inclinação de cada olho em `ESPALHADOS` (uma arrumação para tela deitada e outra para tela em
+pé), no topo de `src/olho.js`.
 
 O código fica em `src/olho.js` (medidas e cores no topo, em `OLHO` e `COR_OLHO`) e o arquivo que a
 página carrega, `js/olho.js`, é gerado por `npm run build` (ou só ele: `npm run build:olho`).
