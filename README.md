@@ -52,19 +52,20 @@ O CSS do final fica em `css/estilo.css` (`body.fim` e `#final`).
 
 ## O olho (`olho/`)
 
-Uma página separada: abra `olho/index.html`. É um olho desenhado com linhas de luz, no mesmo
-estilo de arte do Big Bang (luz e brilho difuso): as pálpebras se cruzam um pouco além das pontas,
-a íris é só o contorno de um círculo e a pupila, o contorno de uma fenda em pé (de gato). Por
-dentro é transparente: vê-se o céu estrelado através do olho.
+Uma página separada: abra `olho/index.html`. São 5 olhos espalhados pela tela, desenhados com
+linhas de luz no mesmo estilo de arte do Big Bang (luz e brilho difuso): as pálpebras se cruzam um
+pouco além das pontas, a íris é só o contorno de um círculo e a pupila, o contorno de uma fenda em
+pé (de gato). Por dentro são transparentes: vê-se o céu estrelado através deles.
 
 Animação:
 
-- o olho segue o mouse (ou o dedo, no celular);
+- cada olho segue o mouse (ou o dedo, no celular) a partir de onde está;
 - se o ponteiro fica parado por 7 segundos, ele volta a olhar para a frente, fica assim uns 3
   segundos e depois começa a olhar para lugares aleatórios; mexeu, volta a seguir;
-- pisca a cada 8 a 10 segundos.
+- cada um pisca a cada 8 a 10 segundos, no seu ritmo.
 
-Os tempos ficam em `ANIMACAO`, no topo de `src/olho.js`. Os efeitos em volta do olho vêm depois.
+Os tempos ficam em `ANIMACAO` e a posição, o tamanho e a inclinação de cada olho em `ESPALHADOS`
+(uma arrumação para tela deitada e outra para tela em pé), no topo de `src/olho.js`. Os efeitos em volta do olho vêm depois.
 
 O código fica em `src/olho.js` (medidas e cores no topo, em `OLHO` e `COR_OLHO`) e o arquivo que a
 página carrega, `js/olho.js`, é gerado por `npm run build` (ou só ele: `npm run build:olho`).
