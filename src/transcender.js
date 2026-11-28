@@ -60,9 +60,9 @@ class Energia {
       aVel[i] = 0.35 + rand() * 0.6;
       aFase[i] = rand();
       const c = cores[Math.floor(rand() * cores.length)];
-      const b = 0.6 + rand() * 0.8;
+      const b = 0.9 + rand() * 1.0;
       aCor.set([c.r * b, c.g * b, c.b * b], i * 3);
-      aTam[i] = 0.12 + Math.pow(rand(), 3) * 0.4;
+      aTam[i] = 0.25 + Math.pow(rand(), 3) * 0.7;
     }
     this.u = { uT: { value: 0 }, uOpac: { value: 0 }, uCentro: { value: new THREE.Vector2() }, uRaio: { value: 30 } };
     this.pontos = pontos(
@@ -180,7 +180,39 @@ export class Transcendencia {
     this.brilhoFresta = sprite(tex.brilho, '#c084fc', 1, 0);
     this.brilhoFresta.renderOrder = 14;
     this.brilhoFresta.material.depthTest = false;
-    cena.add(this.feixe, this.brilhoFresta);
+    this.feixeFino = sprite(tex.brilho, '#ffffff', 1, 0); // um risco fino e comprido no meio do feixe
+    this.feixeFino.renderOrder = 14;
+    this.feixeFino.material.depthTest = false;
+    cena.add(this.feixe, this.brilhoFresta, this.feixeFino);
+    // raios de luz escapando por cima e por baixo da fresta
+    this.uRaios = { uT: { value: 0 }, uForca: { value: 0 } };
+    this.raios = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.ShaderMaterial({
+        uniforms: this.uRaios,
+        vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: /* glsl */ `
+          uniform float uT; uniform float uForca; varying vec2 vUv;
+          float acaso(float n) { return fract(sin(n) * 43758.5453); }
+          float ruido(float x) { float i = floor(x); float f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(acaso(i), acaso(i + 1.0), f); }
+          void main() {
+            vec2 p = (vUv - 0.5) * vec2(2.4, 1.6); // em larguras do olho
+            float ang = atan(p.y, p.x * 0.42);
+            float raios = pow(ruido(ang * 9.0 + uT * 0.5), 4.0) * 0.9 + pow(ruido(ang * 23.0 - uT * 0.8 + 3.0), 6.0) * 0.7;
+            float r = length(p * vec2(0.42, 1.0));
+            float queda = exp(-r * 3.4) * smoothstep(0.0, 0.025, abs(p.y));
+            float borda = 1.0 - smoothstep(0.38, 0.5, max(abs(vUv.x - 0.5), abs(vUv.y - 0.5)));
+            gl_FragColor = vec4(vec3(0.88, 0.8, 1.0) * raios * queda * borda * uForca * 1.6, 1.0);
+          }
+        `,
+        transparent: true,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+      })
+    );
+    this.raios.renderOrder = 13;
+    cena.add(this.raios);
     this.vazio = new ShaderPass(SHADER_VAZIO);
     composer.insertPass(this.vazio, 3); // logo depois do brilho difuso
     this._v = new THREE.Vector2();
@@ -316,15 +348,15 @@ export class Transcendencia {
       luzDentro = 4.5 * Math.pow(fLuz, 1.8);
     } else {
       brilho = lerp(2.7, 1.6, easeOutCubic(fAbrir));
-      luzDentro = lerp(4.5, 0.2, easeOutCubic(fAbrir));
+      luzDentro = lerp(4.5, 0, easeOutCubic(fAbrir));
     }
     const virouEstrela = smoothstep(0, 0.5, fAbrir);
     esc.olho.atualizar(t, esc.x, esc.y, abertura, glitch, 0);
     u.uOpac.value = 1 - smoothstep(0.85, 1, fEntrar);
     u.uBrilho.value = brilho;
     u.uLuzDentro.value = luzDentro;
-    u.uIrisLinha.value = 1 - virouEstrela;
-    u.uPupilaLinha.value = 1 + 0.6 * virouEstrela;
+    u.uIrisLinha.value = 1 - 0.7 * virouEstrela; // (fica um aro fraco em volta da estrela)
+    u.uPupilaLinha.value = 1 + 1.6 * virouEstrela; // a borda da pupila oca fica bem clara (como um eclipse)
 
     // ---- os outros olhos: olham para o escolhido e somem
     const somem = 1 - smoothstep(0.3, 1.8, s);
@@ -348,14 +380,22 @@ export class Transcendencia {
     this.energia.atualizar(t, energia, this._v.set(cx, cy), M.meiaLargura * 2 * escala);
 
     // ---- feixe de luz pela fresta (4. luz), que some quando o olho abre
-    const feixe = s < MARCOS.abrir[0] ? fLuz * fLuz * (s >= MARCOS.luz[0] ? 1 : 0) : 1 - easeOutCubic(fAbrir);
+    const feixe = s < MARCOS.abrir[0] ? Math.pow(fLuz, 1.3) * (s >= MARCOS.luz[0] ? 1 : 0) : 1 - easeOutCubic(fAbrir);
     const largura = M.meiaLargura * 2 * escala;
     this.feixe.position.set(cx, cy - M.meiaAltura * 0.3 * escala * (1 - abertura), 1);
-    this.feixe.scale.set(largura * (0.6 + 1.7 * fLuz), escala * (0.55 + 0.5 * fLuz), 1);
-    this.feixe.material.opacity = 0.95 * feixe;
+    this.feixe.scale.set(largura * (0.8 + 1.6 * fLuz), escala * (0.9 + 1.2 * fLuz), 1);
+    this.feixe.material.opacity = feixe;
+    this.feixeFino.position.copy(this.feixe.position);
+    this.feixeFino.scale.set(largura * (1.2 + 2.6 * fLuz), escala * 0.22, 1);
+    this.feixeFino.material.opacity = feixe;
     this.brilhoFresta.position.copy(this.feixe.position);
-    this.brilhoFresta.scale.setScalar(largura * 0.55 * (0.3 + fLuz));
-    this.brilhoFresta.material.opacity = 0.4 * feixe;
+    this.brilhoFresta.scale.setScalar(largura * 0.6 * (0.3 + fLuz));
+    this.brilhoFresta.material.opacity = 0.45 * feixe;
+    this.raios.position.copy(this.feixe.position);
+    this.raios.scale.set(largura * 2.4, largura * 1.6, 1);
+    this.uRaios.uT.value = t;
+    this.uRaios.uForca.value = s < MARCOS.abrir[0] ? fLuz * fLuz * (s >= MARCOS.luz[0] ? 1 : 0) : Math.exp(-fAbrir * 3);
+    this.raios.visible = this.uRaios.uForca.value > 0.001;
 
     // ---- clarão quando abre
     if (this.elementos.clarao) {
@@ -370,14 +410,14 @@ export class Transcendencia {
     const pulsoEstrela = 1 + 0.05 * Math.sin(t * 5.1) + 0.03 * Math.sin(t * 13.7);
     this.estrela.atualizar(t, (tt, out) => out.copy(estrelaPos), {
       visivel: apareceu > 0.001 && fEntrar < 0.999,
-      brilho: 1.5 * apareceu * pulsoEstrela,
+      brilho: 2.5 * apareceu * pulsoEstrela,
       escala: 1,
       tremor: 0,
       raioMalabares: () => escala * apareceu,
       luz: 0,
       rastro: 0,
       limite: 0,
-      escalaVisual: escala * 0.95,
+      escalaVisual: escala * 0.68,
     });
 
     // ---- a pupila oca (e, no fim, o espaço vazio tomando a tela)
@@ -395,6 +435,12 @@ export class Transcendencia {
     vz.uPx.value = 1.5 / Math.max(1, innerHeight);
     vz.uT.value = t;
 
+    // quando o oco já cobre a tela inteira, o olho e a estrela não aparecem mais: param de ser
+    // desenhados (são enormes nessa hora e pesariam à toa)
+    const coberto = fEntrar > 0.97;
+    esc.olho.grupo.visible = !coberto;
+    if (coberto) this.estrela.atualizar(t, (tt, out) => out.copy(estrelaPos), { visivel: false });
+
     // ---- 8. vazio
     if (s >= MARCOS.total && !this.terminou) {
       this.terminou = true;
@@ -411,7 +457,9 @@ export class Transcendencia {
       this.estrela.atualizar(t, (tt, out) => out.set(0, 0, 0), { visivel: false });
       this.energia.atualizar(t, 0, this._v, 1);
       this.feixe.material.opacity = 0;
+      this.feixeFino.material.opacity = 0;
       this.brilhoFresta.material.opacity = 0;
+      this.raios.visible = false;
       if (this.elementos.clarao) this.elementos.clarao.style.opacity = '0';
     }
   }

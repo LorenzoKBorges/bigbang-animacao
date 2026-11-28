@@ -71,6 +71,13 @@ Efeitos:
 - clicou (ou tocou) num olho: ele pisca vermelho, fica quase fechado por uns 5 segundos e depois
   abre. Em cima de um olho o cursor vira a mãozinha.
 
+Depois de 15 segundos (ou com `olho.transcender()`) começa a **transcendência**, uma cena no estilo
+do Big Bang (~12 s): um olho é escolhido e vai para o meio, treme e olha para todo lado, fecha, uma
+luz sai pela fresta, ele abre com a íris virando a estrela do Big Bang, a pupila é oca e a câmera
+entra nela até o espaço vazio. No fim a página mostra o `<main id="final">` de `olho/index.html` e
+dispara o evento `olho:fim`. A cena fica em `src/transcender.js` (ajustes em `TRANSCENDER`); para
+testar, `?transcender` começa logo e `?cena=8` congela no segundo 8 da cena.
+
 Os tempos ficam em `ANIMACAO`, as cores e tempos dos efeitos em `EFEITOS` e a posição, o tamanho e
 a inclinação de cada olho em `ESPALHADOS` (uma arrumação para tela deitada e outra para tela em
 pé), no topo de `src/olho.js`.
