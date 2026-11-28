@@ -73,9 +73,9 @@ Efeitos:
 
 Depois de 15 segundos (ou com `olho.transcender()`) começa a **transcendência**, uma cena no estilo
 do Big Bang (~13 s): um olho é escolhido e vai para o meio, treme e olha para todo lado, fecha, uma
-luz sai pela fresta e ele abre transformado: a íris vira uma estrela muito forte (a do Big Bang), a
-pupila vira uma estrela de 4 pontas, aparece uma coroa de pontas em volta e raios compridos saem
-dele. A pupila é oca e a câmera entra nela até o espaço vazio. No fim a página mostra o `<main id="final">` de `olho/index.html` e
+luz sai pela fresta e ele abre transformado: a íris vira uma estrela de 8 pontas muito luminosa
+(como a estrela do Big Bang), passando das pálpebras, a pupila vira uma estrela de 4 pontas e raios
+compridos saem dele. A pupila é oca e a câmera entra nela até o espaço vazio. No fim a página mostra o `<main id="final">` de `olho/index.html` e
 dispara o evento `olho:fim`. A cena fica em `src/transcender.js` (ajustes em `TRANSCENDER`); para
 testar, `?transcender` começa logo e `?cena=8` congela no segundo 8 da cena.
 
